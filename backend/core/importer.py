@@ -23,16 +23,17 @@ from backend.core import database as db
 # token and reintroduce exactly the false chain the singular removes.
 STOPWORDS = {
     "a", "about", "advice", "an", "and", "answer", "answers", "any", "are",
-    "as", "at", "be", "best", "but", "by", "can", "chat", "chatgpt",
-    "conversation", "discussion", "discussions", "do", "does", "explain",
-    "follow", "follows", "for", "from", "get", "give", "good", "has",
-    "have", "help", "how", "i", "idea", "ideas", "in", "is", "it", "its",
-    "just", "know", "like", "make", "me", "my", "need", "new", "not", "of",
-    "on", "one", "or", "please", "question", "questions", "should", "some",
-    "talk", "talks", "that", "the", "their", "them", "then", "there",
-    "these", "this", "thoughts", "tip", "tips", "to", "up", "update",
-    "updates", "use", "using", "want", "was", "way", "we", "what", "when",
-    "where", "which", "why", "will", "with", "would", "you", "your",
+    "as", "at", "be", "best", "but", "by", "can", "chat", "chatgpt", "chats",
+    "conversation", "conversations", "discussion", "discussions", "do",
+    "does", "explain", "follow", "follows", "for", "from", "get", "give",
+    "good", "has", "have", "help", "how", "i", "idea", "ideas", "in", "is",
+    "it", "its", "just", "know", "like", "make", "me", "my", "need", "new",
+    "not", "of", "on", "one", "or", "please", "question", "questions",
+    "should", "some", "talk", "talks", "that", "the", "their", "them",
+    "then", "there", "these", "this", "thought", "thoughts", "tip", "tips",
+    "to", "up", "update", "updates", "use", "using", "want", "was", "way",
+    "we", "what", "when", "where", "which", "why", "will", "with", "would",
+    "you", "your",
 }
 
 _WORD_RE = re.compile(r"[^\W_]+", re.UNICODE)
