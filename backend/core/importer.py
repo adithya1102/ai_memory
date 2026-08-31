@@ -17,16 +17,21 @@ from backend.core import database as db
 # container rather than the subject, and two titles sharing only one of them
 # are not about the same thing: "Project discussion" and "Gusto forecasting
 # discussion" would otherwise chain on the strength of "discussion" alone.
+#
+# Singular and plural are both listed because significant_words() lowercases
+# but does not stem, so "discussions" would otherwise survive as a distinct
+# token and reintroduce exactly the false chain the singular removes.
 STOPWORDS = {
-    "a", "about", "advice", "an", "and", "answer", "any", "are", "as", "at",
-    "be", "best", "but", "by", "can", "chat", "chatgpt", "conversation",
-    "discussion", "do", "does", "explain", "follow", "for", "from", "get",
-    "give", "good", "has", "have", "help", "how", "i", "idea", "in", "is",
-    "it", "its", "just", "know", "like", "make", "me", "my", "need", "new",
-    "not", "of", "on", "one", "or", "please", "question", "questions",
-    "should", "some", "talk", "that", "the", "their", "them", "then",
-    "there", "these", "this", "thoughts", "tip", "tips", "to", "up",
-    "update", "use", "using", "want", "was", "way", "we", "what", "when",
+    "a", "about", "advice", "an", "and", "answer", "answers", "any", "are",
+    "as", "at", "be", "best", "but", "by", "can", "chat", "chatgpt",
+    "conversation", "discussion", "discussions", "do", "does", "explain",
+    "follow", "follows", "for", "from", "get", "give", "good", "has",
+    "have", "help", "how", "i", "idea", "ideas", "in", "is", "it", "its",
+    "just", "know", "like", "make", "me", "my", "need", "new", "not", "of",
+    "on", "one", "or", "please", "question", "questions", "should", "some",
+    "talk", "talks", "that", "the", "their", "them", "then", "there",
+    "these", "this", "thoughts", "tip", "tips", "to", "up", "update",
+    "updates", "use", "using", "want", "was", "way", "we", "what", "when",
     "where", "which", "why", "will", "with", "would", "you", "your",
 }
 

@@ -184,7 +184,9 @@ Which words survive matters as much as the arithmetic. Sharing half of a
 two-word title means sharing a single word, so the stopword list covers not
 only ordinary English filler but generic nouns for the act of having a
 conversation — *discussion, talk, advice, thoughts, update, tips*. Those name
-the container rather than the subject. *"Project discussion"* and *"Gusto
+the container rather than the subject. Singular and plural are both listed,
+since titles are lowercased but never stemmed and "discussions" would
+otherwise slip through as a distinct token. *"Project discussion"* and *"Gusto
 forecasting discussion"* have only "discussion" in common, so once it is
 stripped they share nothing and stay unchained, which is right: one is about
 architecture, the other about Prophet seasonality.
