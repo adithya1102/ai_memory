@@ -13,7 +13,17 @@
       {
         "author": "model",
         "create_time": "2025-03-22T07:32:00Z",
-        "text": "Here is a 5-day endurance-focused plan:\n\nMonday - 40 minutes steady-state cardio, zone 2\nTuesday - full-body circuit, light weights, high reps\nWednesday - intervals: 8 x 400m with 90 seconds recovery\nThursday - active recovery, mobility and a long walk\nFriday - tempo run, 25 minutes at a comfortably hard pace\nWeekend - one long easy session, build to 90 minutes\n\nKeep about 80% of the volume easy. Most people ruin their endurance progress by running their easy days too hard."
+        "text": "Here is a 5-day endurance circuit:\n\nMonday - 40 minutes steady-state cardio, zone 2\nTuesday - full-body circuit, light weights, high reps\nWednesday - intervals: 8 x 400m with 90 seconds recovery\nThursday - active recovery, mobility and a long walk\nFriday - tempo circuit, 25 minutes at a comfortably hard pace\n\nKeep about 80% of the volume easy. Most people ruin their endurance progress by training their easy days too hard."
+      },
+      {
+        "author": "user",
+        "create_time": "2025-03-22T07:38:00Z",
+        "text": "The gym is packed after work. When should I actually go?"
+      },
+      {
+        "author": "model",
+        "create_time": "2025-03-22T07:39:00Z",
+        "text": "Block out a 2-hour off-peak workout window rather than squeezing sessions in at 18:00 with everyone else. Most gyms are quietest between 10:00 and 12:00, or after 20:30.\n\nA 2-hour block sounds like a lot for a 45-minute circuit, and the slack is the point: you never wait for a squat rack, so the session actually happens."
       },
       {
         "author": "user",

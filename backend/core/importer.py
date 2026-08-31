@@ -148,22 +148,29 @@ def detect_chains(conn, threshold=0.5):
 
     meta = {r["id"]: (r["title"], r["created_at"]) for r in rows}
 
+    # Build every chain first, then create them in name order, so ids follow
+    # the order chains are displayed in rather than the order the grouping
+    # happened to discover them.  Without this a library's chains come out
+    # numbered 1, 3, 2 on the page.
+    pending = []
+    for members in groups.values():
+        if len(members) < 2:
+            continue
+        # Position within a chain follows chronology.
+        ordered = sorted(
+            ((cid, meta[cid][0], meta[cid][1]) for cid in members),
+            key=lambda t: (t[2] or "", t[1] or ""),
+        )
+        pending.append((_chain_name(ordered, word_sets), ordered))
+    pending.sort(key=lambda item: item[0])
+
     with conn:
         db.clear_chains(conn)
-        created = 0
-        for members in groups.values():
-            if len(members) < 2:
-                continue
-            # Position within a chain follows chronology.
-            ordered = sorted(
-                ((cid, meta[cid][0], meta[cid][1]) for cid in members),
-                key=lambda t: (t[2] or "", t[1] or ""),
-            )
-            chain_id = db.create_chain(conn, _chain_name(ordered, word_sets))
+        for name, ordered in pending:
+            chain_id = db.create_chain(conn, name)
             for position, (conv_id, _title, _created) in enumerate(ordered):
                 db.add_conversation_to_chain(conn, chain_id, conv_id, position)
-            created += 1
-    return created
+    return len(pending)
 
 
 def _importers():

@@ -44,14 +44,14 @@ stats = {}
 for name in ("chatgpt_export.json", "claude_export.json", "gemini_export.json"):
     stats[name] = import_file(conn, os.path.join(DEMO, name))
 check("chatgpt: 4 conversations", stats["chatgpt_export.json"]["inserted"] == 4)
-check("claude: 2 conversations", stats["claude_export.json"]["inserted"] == 2)
+check("claude: 3 conversations", stats["claude_export.json"]["inserted"] == 3)
 check("gemini: 2 conversations", stats["gemini_export.json"]["inserted"] == 2)
 check("provider reported in stats",
       [s["provider"] for s in stats.values()] == ["chatgpt", "claude", "gemini"])
 check("three providers registered",
       conn.execute("SELECT COUNT(*) FROM providers").fetchone()[0] == 3)
-check("8 conversations total",
-      conn.execute("SELECT COUNT(*) FROM conversations").fetchone()[0] == 8)
+check("9 conversations total",
+      conn.execute("SELECT COUNT(*) FROM conversations").fetchone()[0] == 9)
 
 print("\n== role and field mapping ==")
 check("claude 'human' mapped to 'user'",
@@ -65,7 +65,7 @@ check("no unmapped roles survive",
                    "('user','assistant')").fetchone()[0] == 0)
 check("claude ids namespaced",
       conn.execute("SELECT COUNT(*) FROM conversations WHERE id LIKE 'claude:%'"
-                   ).fetchone()[0] == 2)
+                   ).fetchone()[0] == 3)
 check("gemini ids namespaced",
       conn.execute("SELECT COUNT(*) FROM conversations WHERE id LIKE 'gemini:%'"
                    ).fetchone()[0] == 2)
@@ -79,10 +79,19 @@ check("gemini title read from 'title'",
 print("\n== cross-provider search ==")
 gym = hybrid_search(conn, "gym routine")
 providers = {r["provider_name"] for r in gym}
-check("'gym routine' spans ChatGPT and Gemini",
-      {"ChatGPT", "Gemini"} <= providers, sorted(providers))
-check("...and Claude has nothing to offer on it (it was never asked)",
-      "Claude" not in providers, sorted(providers))
+check("'gym routine' spans all three providers",
+      {"ChatGPT", "Claude", "Gemini"} <= providers, sorted(providers))
+# The snippet is a short window around the match, so check the conversation
+# it points at rather than the excerpt.
+claude_hit = next((r for r in gym if r["provider_name"] == "Claude"), None)
+check("Claude's hit is its 'nothing on file' conversation",
+      claude_hit is not None
+      and "on file" in " ".join(m["content"] for m in
+                                db.get_messages(conn, claude_hit["conversation_id"])),
+      claude_hit and claude_hit["title"])
+check("ChatGPT's richest gym conversation is titled 'Welcome'",
+      any(r["title"] == "Welcome" and r["provider_name"] == "ChatGPT"
+          for r in gym), [r["title"] for r in gym])
 gusto = hybrid_search(conn, "Gusto forecasting")
 gusto_providers = {r["provider_name"] for r in gusto[:2]}
 check("'Gusto forecasting' finds ChatGPT and Claude",
@@ -117,8 +126,8 @@ print("\n== re-import deduplicates per provider ==")
 for name in ("chatgpt_export.json", "claude_export.json", "gemini_export.json"):
     again = import_file(conn, os.path.join(DEMO, name))
     check("%-22s re-import inserts nothing" % name, again["inserted"] == 0, again)
-check("still 8 conversations",
-      conn.execute("SELECT COUNT(*) FROM conversations").fetchone()[0] == 8)
+check("still 9 conversations",
+      conn.execute("SELECT COUNT(*) FROM conversations").fetchone()[0] == 9)
 check("chain ids still start at 1",
       min(c["id"] for c in db.get_chains(conn)) == 1,
       [c["id"] for c in db.get_chains(conn)])

@@ -235,7 +235,7 @@ python tests/run_all.py           # everything
 python tests/test_core.py         # one suite
 ```
 
-373 checks across six suites. All of them use temporary databases and never
+374 checks across six suites. All of them use temporary databases and never
 touch `data/`, so you cannot lose a real library by running them.
 
 | Suite | Covers |

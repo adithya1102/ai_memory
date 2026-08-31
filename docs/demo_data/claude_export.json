@@ -1,5 +1,23 @@
 [
   {
+    "uuid": "cl-000",
+    "name": "Gym routine check",
+    "created_at": "2025-04-02T20:11:00Z",
+    "updated_at": "2025-04-02T20:12:00Z",
+    "chat_messages": [
+      {
+        "sender": "human",
+        "created_at": "2025-04-02T20:11:00Z",
+        "text": "What's my gym routine? Remind me what I'm supposed to be doing on day 2."
+      },
+      {
+        "sender": "assistant",
+        "created_at": "2025-04-02T20:12:00Z",
+        "text": "I don't have a gym routine on file for you. I have no record of us discussing your training - as far as I can see, this is the first time you have mentioned it to me.\n\nIf you tell me which split you are following I can help with day 2, but I cannot retrieve something I was never told."
+      }
+    ]
+  },
+  {
     "uuid": "cl-001",
     "name": "Gusto demand model architecture",
     "created_at": "2025-03-08T09:14:00Z",
