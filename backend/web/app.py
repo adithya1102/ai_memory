@@ -12,8 +12,8 @@ PROJECT_ROOT = os.path.dirname(
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
-from flask import (Flask, abort, flash, g, redirect, render_template, request,
-                   url_for)
+from flask import (Flask, abort, flash, g, jsonify, redirect, render_template,
+                   request, url_for)
 from werkzeug.utils import secure_filename
 
 from backend.core import database as db
@@ -81,12 +81,23 @@ def create_app(db_path=db.DB_PATH, imports_dir=db.IMPORTS_DIR):
             return redirect(url_for("index"))
         semantic_on = db.get_flag(conn, SEMANTIC_ENABLED_KEY, default=True)
         results = hybrid_search(conn, query, limit=50)
+        state = embeddings.model_state()
+        indexed = embeddings.has_embeddings(conn)
         return render_template(
             "results.html", query=query, results=results,
             semantic_on=semantic_on,
             semantic_used=any("semantic" in r["match_types"] for r in results),
-            has_embeddings=embeddings.has_embeddings(conn),
+            has_embeddings=indexed,
+            model_state=state,
+            # Only worth telling the user the model is warming up when it would
+            # otherwise have contributed results.
+            model_loading=(semantic_on and indexed
+                           and state["state"] in ("idle", "loading")),
         )
+
+    @app.route("/api/model-status")
+    def model_status():
+        return jsonify(embeddings.model_state())
 
     @app.route("/conversation/<path:conversation_id>")
     def conversation(conversation_id):

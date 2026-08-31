@@ -34,6 +34,9 @@
       </td>
     </tr>
     <tr><th>Model</th><td class="value"><code>{{ embedding.model }}</code></td></tr>
+    <tr><th>Model status</th>
+        <td class="value">{{ embedding.state }}{% if embedding.state not in ('ready', 'idle') %}
+          — {{ embedding.state_reason }}{% endif %}</td></tr>
     <tr><th>Dimensions</th><td class="value">{{ embedding.dimensions }}</td></tr>
     <tr><th>Conversations embedded</th>
         <td class="value">{{ embedding.embedded }} / {{ embedding.conversations }}</td></tr>

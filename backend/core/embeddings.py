@@ -10,6 +10,8 @@ why and every entry point degrades to a no-op so search falls back to keyword
 matching.
 """
 
+import importlib.util
+import os
 import threading
 
 MODEL_NAME = "all-MiniLM-L6-v2"
@@ -33,23 +35,35 @@ CHUNK_OVERLAP_TOKENS = 40
 MIN_SIMILARITY = 0.15
 
 _model = None
-_model_lock = threading.Lock()
+_model_lock = threading.Lock()      # held for the duration of a load
+_state_lock = threading.Lock()      # always fast; never held across a load
+_model_state = "idle"               # idle | loading | ready | failed
+_model_error = None
 
 
 # --------------------------------------------------------------------------
 # Availability
 # --------------------------------------------------------------------------
 
+def _installed(module_name):
+    """Is a module importable, without actually importing it?
+
+    find_spec() only resolves the module on disk.  Actually importing
+    sentence_transformers drags in PyTorch and costs seconds, and this runs on
+    request threads and at startup, so it must stay cheap.
+    """
+    try:
+        return importlib.util.find_spec(module_name) is not None
+    except (ImportError, ValueError, ModuleNotFoundError):
+        return False
+
+
 def availability():
     """Return (ok, reason).  ``reason`` is user-facing when ok is False."""
-    try:
-        import sentence_transformers  # noqa: F401
-    except ImportError:
+    if not _installed("sentence_transformers"):
         return False, ("sentence-transformers is not installed "
                        "(pip install -r requirements.txt)")
-    try:
-        import sqlite_vec  # noqa: F401
-    except ImportError:
+    if not _installed("sqlite_vec"):
         return False, "sqlite-vec is not installed (pip install -r requirements.txt)"
     return True, "ready"
 
@@ -92,15 +106,115 @@ def ensure_vector_table(conn):
     return True
 
 
+def _quiet_progress_bars():
+    """Stop the model loader writing progress bars to stdout.
+
+    This app can be launched with stdout attached to a pipe nobody drains -- a
+    GUI launcher, pythonw, a supervising process.  Once that pipe's buffer
+    fills, the writing thread blocks forever and takes the whole app with it,
+    including request handling.  Best-effort: never fail because a progress bar
+    could not be silenced.
+    """
+    os.environ.setdefault("HF_HUB_DISABLE_PROGRESS_BARS", "1")
+    try:
+        from transformers.utils import logging as hf_logging
+        hf_logging.disable_progress_bar()
+    except Exception:
+        pass
+
+
+def _set_state(state, error=None):
+    global _model_state, _model_error
+    with _state_lock:
+        _model_state = state
+        _model_error = error
+
+
+def model_state():
+    """Current encoder state, safe to call from a request handler.
+
+    Returns a dict with ``state`` (unavailable | idle | loading | ready |
+    failed), ``ready`` and a human-readable ``reason``.
+    """
+    ok, reason = availability()
+    if not ok:
+        return {"state": "unavailable", "ready": False, "reason": reason}
+    with _state_lock:
+        state, error = _model_state, _model_error
+    return {
+        "state": state,
+        "ready": state == "ready",
+        "reason": error or {
+            "idle": "not loaded yet",
+            "loading": "loading the embedding model",
+            "ready": "ready",
+        }.get(state, ""),
+    }
+
+
 def get_model():
-    """Load the encoder once per process (it takes seconds and is thread-shared)."""
+    """Load the encoder, blocking until it is ready.
+
+    Used by the indexing path, which has to wait.  Query paths should use
+    get_model_if_ready() so a request never stalls behind a cold load.
+    """
     global _model
-    if _model is None:
-        with _model_lock:
-            if _model is None:
+    if _model is not None:
+        return _model
+    with _model_lock:
+        if _model is None:
+            _set_state("loading")
+            try:
+                _quiet_progress_bars()
                 from sentence_transformers import SentenceTransformer
-                _model = SentenceTransformer(MODEL_NAME)
+                model = SentenceTransformer(MODEL_NAME)
+            except Exception as exc:
+                _set_state("failed", str(exc))
+                raise
+            _model = model
+            _set_state("ready")
     return _model
+
+
+def get_model_if_ready():
+    """Return the encoder only if it is already loaded, else None.
+
+    Never blocks: it takes only the fast state lock, so a search issued while
+    the preload thread is still working returns immediately with whatever
+    keyword results exist.
+    """
+    with _state_lock:
+        return _model if _model_state == "ready" else None
+
+
+def start_preload():
+    """Begin loading the encoder on a background thread.
+
+    Called at startup so the first semantic search does not pay the load cost.
+    Returns the thread, or None if loading is unnecessary or impossible.
+    """
+    global _model_state
+    ok, _reason = availability()
+    if not ok:
+        return None
+    with _state_lock:
+        if _model_state in ("loading", "ready"):
+            return None
+        # Claim the slot before releasing the lock so two callers cannot both
+        # spawn a loader.  _set_state() would deadlock here: the lock is held.
+        _model_state = "loading"
+
+    def _load():
+        # Importing sentence_transformers pulls in PyTorch, so it happens here
+        # on the background thread rather than in the caller.
+        try:
+            get_model()
+        except Exception:
+            pass  # state already records the failure
+
+    thread = threading.Thread(target=_load, name="embedding-preload", daemon=True)
+    thread.start()
+    return thread
 
 
 # --------------------------------------------------------------------------
@@ -344,9 +458,12 @@ def embedding_stats(conn):
         chunks = conn.execute("SELECT COUNT(*) FROM chunks").fetchone()[0]
     except Exception:
         embedded = chunks = 0
+    state = model_state()
     return {
         "available": ok,
         "reason": reason,
+        "state": state["state"],
+        "state_reason": state["reason"],
         "model": MODEL_NAME,
         "dimensions": EMBEDDING_DIM,
         "conversations": total,
@@ -371,10 +488,17 @@ def semantic_search(conn, query, top_k=10):
     if not has_embeddings(conn):
         return []
 
+    # Never block a search on a cold model.  If it is still loading, the caller
+    # gets keyword results now and the UI retries once loading finishes.
+    model = get_model_if_ready()
+    if model is None:
+        start_preload()
+        return []
+
     try:
         import sqlite_vec
-        vector = get_model().encode([query], normalize_embeddings=True,
-                                    show_progress_bar=False)[0]
+        vector = model.encode([query], normalize_embeddings=True,
+                              show_progress_bar=False)[0]
         rows = conn.execute(
             """SELECT v.rowid AS chunk_id, v.distance AS distance,
                       ch.conversation_id, ch.content, ch.role

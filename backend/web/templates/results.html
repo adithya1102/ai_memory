@@ -9,6 +9,39 @@
 
   <h2>{{ results|length }} result{{ '' if results|length == 1 else 's' }} for “{{ query }}”</h2>
 
+  {% if model_loading %}
+    <div class="flash loading" id="model-banner">
+      Loading embedding model… showing keyword results meanwhile.
+      This page updates itself when the model is ready
+      (<a href="{{ request.full_path }}">retry now</a>).
+    </div>
+    <script>
+    (function () {
+      var banner = document.getElementById("model-banner");
+      var tries = 0;
+      var timer = setInterval(function () {
+        if (++tries > 90) { clearInterval(timer); return; }
+        fetch({{ url_for('model_status') | tojson }})
+          .then(function (r) { return r.json(); })
+          .then(function (s) {
+            if (s.ready) {
+              clearInterval(timer);
+              window.location.reload();   // re-run the search, now with meaning
+            } else if (s.state === "failed" || s.state === "unavailable") {
+              clearInterval(timer);
+              banner.textContent =
+                "Semantic search unavailable — showing keyword results.";
+            }
+          })
+          .catch(function () { clearInterval(timer); });
+      }, 1000);
+    })();
+    </script>
+  {% elif model_state and model_state.state == 'failed' %}
+    <p class="hint">Semantic search is unavailable ({{ model_state.reason }}) —
+      showing keyword results.</p>
+  {% endif %}
+
   {% if semantic_on and not has_embeddings %}
     <p class="hint">Keyword results only — nothing has been embedded yet.
       <a href="{{ url_for('settings') }}">Build the semantic index</a> to also

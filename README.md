@@ -205,8 +205,11 @@ conversation chains** re-runs detection over the whole library.
   (~0.16 cosine) can appear low in the list. It is badged `semantic` and shows
   its similarity, so you can see what it is. `MIN_SIMILARITY` in
   `backend/core/embeddings.py` is the dial.
-- The encoder loads lazily and takes a few seconds; the first search after
-  starting the app pays that cost once, then it is cached for the process.
+- The encoder takes several seconds to load. It is preloaded on a background
+  thread at launch, so startup stays under a second and searches never block on
+  it. A search arriving mid-load returns keyword results with a "Loading
+  embedding model…" banner, and the page re-runs itself once the model is
+  ready. Preloading is skipped when semantic search is switched off.
 - Vector search is exact (brute-force KNN over every chunk), which is fine for
   a personal library but not for millions of chunks.
 - Chain detection uses titles only, never message content.

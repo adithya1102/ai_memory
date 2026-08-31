@@ -186,6 +186,26 @@ button.toggle.off { opacity: .7; }
     font-size: 14px;
 }
 .flash.error { border-color: var(--accent); color: var(--accent); }
+.flash.loading {
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.flash.loading::before {
+    content: "";
+    flex: none;
+    width: 13px;
+    height: 13px;
+    border: 2px solid currentColor;
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: spin .8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+    .flash.loading::before { animation: none; }
+}
 
 /* ---------- conversation view ---------- */
 .msg {

@@ -49,6 +49,33 @@ def wait_until_up(url, timeout=15.0):
     return False
 
 
+def preload_model(db_path):
+    """Start loading the embedding model in the background.
+
+    The encoder takes several seconds to load, so doing it at launch keeps that
+    cost off the first search.  It runs on a daemon thread and never blocks
+    startup: if it is still loading when a search arrives, the search returns
+    keyword results and the page retries once the model is ready.
+
+    Skipped when semantic search is switched off, so a user who does not want
+    it pays neither the time nor the memory.
+    """
+    from backend.core import embeddings
+    from backend.core.search import SEMANTIC_ENABLED_KEY
+
+    try:
+        conn = db.get_connection(db_path)
+        try:
+            enabled = db.get_flag(conn, SEMANTIC_ENABLED_KEY, default=True)
+        finally:
+            conn.close()
+        if not enabled:
+            return None
+        return embeddings.start_preload()
+    except Exception:
+        return None  # never let preloading stop the app from starting
+
+
 def main():
     parser = argparse.ArgumentParser(description="AI Memory")
     parser.add_argument("--no-window", action="store_true",
@@ -61,6 +88,7 @@ def main():
     os.makedirs(db.IMPORTS_DIR, exist_ok=True)
     db.init_db(args.db).close()
 
+    preload_model(args.db)
     app = create_app(db_path=args.db)
     port = free_port(args.port)
     url = "http://%s:%d" % (HOST, port)
