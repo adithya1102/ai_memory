@@ -11,16 +11,23 @@ from collections import Counter, defaultdict
 
 from backend.core import database as db
 
-# Words that carry no topical signal in a chat title.
+# Words that carry no topical signal in a chat title.  As well as ordinary
+# English stopwords this covers generic nouns for the act of having a
+# conversation ("discussion", "advice", "thoughts", ...).  Those describe the
+# container rather than the subject, and two titles sharing only one of them
+# are not about the same thing: "Project discussion" and "Gusto forecasting
+# discussion" would otherwise chain on the strength of "discussion" alone.
 STOPWORDS = {
-    "a", "about", "an", "and", "any", "are", "as", "at", "be", "best", "but",
-    "by", "can", "chat", "chatgpt", "conversation", "do", "does", "explain",
-    "for", "from", "get", "give", "good", "has", "have", "help", "how", "i",
-    "in", "is", "it", "its", "just", "know", "like", "make", "me", "my", "need",
-    "new", "not", "of", "on", "one", "or", "please", "question", "questions",
-    "should", "some", "that", "the", "their", "them", "then", "there", "these",
-    "this", "to", "up", "use", "using", "want", "was", "way", "we", "what",
-    "when", "where", "which", "why", "will", "with", "would", "you", "your",
+    "a", "about", "advice", "an", "and", "answer", "any", "are", "as", "at",
+    "be", "best", "but", "by", "can", "chat", "chatgpt", "conversation",
+    "discussion", "do", "does", "explain", "follow", "for", "from", "get",
+    "give", "good", "has", "have", "help", "how", "i", "idea", "in", "is",
+    "it", "its", "just", "know", "like", "make", "me", "my", "need", "new",
+    "not", "of", "on", "one", "or", "please", "question", "questions",
+    "should", "some", "talk", "that", "the", "their", "them", "then",
+    "there", "these", "this", "thoughts", "tip", "tips", "to", "up",
+    "update", "use", "using", "want", "was", "way", "we", "what", "when",
+    "where", "which", "why", "will", "with", "would", "you", "your",
 }
 
 _WORD_RE = re.compile(r"[^\W_]+", re.UNICODE)

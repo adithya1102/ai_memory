@@ -119,17 +119,25 @@ creation date.
 The overlap coefficient divides by the *smaller* of the two word sets, so a
 short title that is a subset of a longer one scores 1.0 instead of being
 penalised for the length difference. *"Sourdough starter troubleshooting"* and
-*"Sourdough starter feeding schedule"* score 0.67 and chain. The comparison is
-inclusive, which matters more than it sounds: *"Project discussion"* and
-*"Gusto forecasting discussion"* land on exactly 0.5, and an exclusive test
-would drop them on the boundary.
+*"Sourdough starter feeding schedule"* share two topical words out of a
+three-word minimum, score 0.67, and chain. The comparison against the threshold
+is inclusive.
 
-It is still a crude heuristic that reads titles only. Sharing half of a
-two-word title means sharing one word, so a generic word like "discussion" is
-enough to link two conversations. Expect both false pairs and missed ones. The
-threshold is a parameter — `detect_chains(conn, threshold=0.7)` tightens it —
-and **Settings → Rebuild conversation chains** re-runs detection over the whole
-library.
+Which words survive matters as much as the arithmetic. Sharing half of a
+two-word title means sharing a single word, so the stopword list covers not
+only ordinary English filler but generic nouns for the act of having a
+conversation — *discussion, talk, advice, thoughts, update, tips*. Those name
+the container rather than the subject. *"Project discussion"* and *"Gusto
+forecasting discussion"* have only "discussion" in common, so once it is
+stripped they share nothing and stay unchained, which is right: one is about
+architecture, the other about Prophet seasonality.
+
+It remains a crude heuristic that reads titles and never message bodies —
+those two conversations *are* both about Gusto, and nothing in their titles
+says so. Expect both false pairs and missed ones. The threshold is a
+parameter (`detect_chains(conn, threshold=0.7)` tightens it), `STOPWORDS` in
+`backend/core/importer.py` is the other dial, and **Settings → Rebuild
+conversation chains** re-runs detection over the whole library.
 
 ## Limitations
 
