@@ -166,20 +166,76 @@ def detect_chains(conn, threshold=0.5):
     return created
 
 
-def import_file(conn, file_path, provider="chatgpt"):
+def _importers():
+    from backend.providers.chatgpt_importer import import_chatgpt_export
+    from backend.providers.claude_importer import import_claude_export
+    from backend.providers.gemini_importer import import_gemini_export
+
+    return {
+        "chatgpt": import_chatgpt_export,
+        "claude": import_claude_export,
+        "gemini": import_gemini_export,
+    }
+
+
+def detect_provider(file_path):
+    """Guess which assistant an export came from, by its shape.
+
+    Every vendor uses different field names, which makes sniffing reliable
+    enough that the user never has to say which file they are importing.
+    Returns a provider name, defaulting to "chatgpt" when nothing matches --
+    that adapter is the most tolerant of odd shapes.
+    """
+    import json
+
+    from backend.providers.claude_importer import looks_like_claude_export
+    from backend.providers.gemini_importer import looks_like_gemini_export
+
+    try:
+        with open(file_path, "r", encoding="utf-8") as handle:
+            payload = json.load(handle)
+    except Exception:
+        return "chatgpt"
+
+    records = payload
+    if isinstance(payload, dict):
+        for key in ("conversations", "data", "items"):
+            if isinstance(payload.get(key), list):
+                records = payload[key]
+                break
+        else:
+            records = [payload]
+    if not isinstance(records, list):
+        return "chatgpt"
+
+    sample = [r for r in records[:25] if isinstance(r, dict)]
+    if any(isinstance(r.get("mapping"), dict) for r in sample):
+        return "chatgpt"
+    if looks_like_claude_export(sample):
+        return "claude"
+    if looks_like_gemini_export(sample):
+        return "gemini"
+    return "chatgpt"
+
+
+def import_file(conn, file_path, provider=None):
     """Import an export file and rebuild chains.
+
+    ``provider`` defaults to sniffing the file's shape.
 
     Returns the provider importer's stats dict with ``chains`` added.
     """
-    from backend.providers.chatgpt_importer import import_chatgpt_export
-
-    importers = {"chatgpt": import_chatgpt_export}
-    if provider not in importers:
-        raise ValueError("Unknown provider: %s" % provider)
     if not os.path.exists(file_path):
         raise FileNotFoundError(file_path)
 
+    importers = _importers()
+    if provider is None:
+        provider = detect_provider(file_path)
+    if provider not in importers:
+        raise ValueError("Unknown provider: %s" % provider)
+
     stats = importers[provider](conn, file_path)
+    stats["provider"] = provider
     stats["chains"] = detect_chains(conn)
     stats.update(embed_new_conversations(conn))
     return stats

@@ -2,7 +2,7 @@
 
 ![Python](https://img.shields.io/badge/python-3.10%2B-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
-![Tests](https://img.shields.io/badge/tests-332%20passing-brightgreen)
+![Tests](https://img.shields.io/badge/tests-373%20passing-brightgreen)
 ![Local first](https://img.shields.io/badge/data-100%25%20local-informational)
 
 **A local-first memory layer for your AI conversations. Search everything you
@@ -62,6 +62,9 @@ Not one word of *"how do I get stronger"* appears anywhere in that
 conversation. Keyword search returns nothing at all for it. The embedding
 knows that getting stronger and building muscle are the same question.
 
+**[Read the full walkthrough →](docs/demo.md)** — three assistants, three
+exports, one library, and the contradiction none of them could see.
+
 ## Why local-first?
 
 Your chat history is not a pile of search queries. It is medical questions,
@@ -96,6 +99,8 @@ Cloud sync would make some things easier. It is not worth it for this data.
 | **Hybrid ranking** | Both engines merged with Reciprocal Rank Fusion, deduplicated by conversation, badged `keyword` / `semantic` / `both`. |
 | **Conversation chains** | Related conversations grouped automatically, so a topic you returned to over weeks reads as one thread. |
 | **Safe re-import** | Import the same export twice and nothing duplicates. Matched on id, then on content hash, so even a re-generated export is recognised. |
+| **Multi-provider** | ChatGPT, Claude and Gemini in one library and one index. The provider is detected from the file. |
+| **MCP server** | Three read-only tools so Claude Desktop can search your archive for you. |
 | **Desktop app** | Runs in a native window via pywebview, or in your browser with `--no-window`. |
 
 ## Setup
@@ -268,12 +273,12 @@ is one file rather than a refactor.
 flowchart TD
     subgraph sources [" Data sources "]
         A1["ChatGPT export"]
-        A2["Claude export<br/><i>planned</i>"]
-        A3["Gemini export<br/><i>planned</i>"]
+        A2["Claude export"]
+        A3["Gemini export"]
     end
 
     subgraph adapters [" Provider adapters "]
-        B1["chatgpt_importer.py<br/>tree walk · branch selection · text extraction"]
+        B1["chatgpt_importer.py<br/>claude_importer.py<br/>gemini_importer.py<br/>shape sniffed per file"]
     end
 
     subgraph universal [" Universal format · SQLite "]
@@ -298,8 +303,8 @@ flowchart TD
     end
 
     A1 --> B1
-    A2 -.-> B1
-    A3 -.-> B1
+    A2 --> B1
+    A3 --> B1
     B1 --> C1
     C1 --> D1
     C1 --> D2
@@ -312,11 +317,11 @@ flowchart TD
     E3 --> F1
     E3 --> F2
 
-    classDef planned stroke-dasharray: 5 5,opacity:0.65
-    class A2,A3 planned
 ```
 
-Dashed boxes are on the [roadmap](ROADMAP.md), not built yet.
+Provider-specific parsing happens once, at the edge; the provider is
+detected from the file's shape, so importing never asks which assistant a
+file came from.
 
 ## How it works
 
@@ -332,13 +337,16 @@ ai_memory/
 │   │   ├── server.py     MCP transports: stdio, TCP, optional SDK
 │   │   └── tools.py      the three tools, transport-free
 │   ├── providers/
-│   │   └── chatgpt_importer.py   parses ChatGPT's export format
+│   │   ├── chatgpt_importer.py   message-tree format
+│   │   ├── claude_importer.py    flat chat_messages format
+│   │   └── gemini_importer.py    flat messages format
 │   ├── web/
 │   │   ├── app.py        Flask routes
 │   │   ├── templates/    Jinja2 pages
 │   │   └── static/       stylesheet
 │   └── main.py           entry point: Flask thread + pywebview window
 ├── mcp_server.py         launcher an MCP client spawns
+├── docs/demo.md          the walkthrough, with real output
 ├── tests/                five suites, no test framework required
 ├── data/                 database and saved imports (gitignored)
 └── sample_conversations.json
@@ -443,7 +451,7 @@ conversation chains** re-runs detection over the whole library.
 python tests/run_all.py
 ```
 
-332 checks across five suites. They run against temporary databases and never
+373 checks across six suites. They run against temporary databases and never
 touch `data/`, so running them cannot harm a real library. The two semantic
 suites skip themselves with a note if sentence-transformers is not installed.
 
@@ -451,7 +459,9 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for what each suite covers.
 
 ## Limitations
 
-- ChatGPT is the only supported provider.
+- ChatGPT, Claude and Gemini are supported. The Gemini adapter targets a
+  documented rather than a verified export shape — Takeout's format is not
+  publicly specified and has changed; adjust the parsing if yours differs.
 - Semantic matches are ranked but not thresholded aggressively: a weak match
   (~0.16 cosine) can appear low in the list. It is badged `semantic` and shows
   its similarity, so you can see what it is. `MIN_SIMILARITY` in

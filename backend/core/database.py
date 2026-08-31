@@ -203,14 +203,28 @@ def insert_provider(conn, name, display_name):
     return cur.lastrowid
 
 
-def find_conversation_by_hash(conn, content_hash):
-    """Return the id of a conversation with this transcript, if one exists."""
+def find_conversation_by_hash(conn, content_hash, provider_id=None):
+    """Return the id of a conversation with this transcript, if one exists.
+
+    Scoped to one provider when ``provider_id`` is given, and it always should
+    be: identical text said to two different assistants is two conversations,
+    not one.  Short exchanges collide easily -- "hello there" to Claude and to
+    Gemini hash the same -- and without this scope the second import would
+    silently discard the first's twin.
+    """
     if not content_hash:
         return None
-    row = conn.execute(
-        "SELECT id FROM conversations WHERE content_hash = ? LIMIT 1",
-        (content_hash,),
-    ).fetchone()
+    if provider_id is None:
+        row = conn.execute(
+            "SELECT id FROM conversations WHERE content_hash = ? LIMIT 1",
+            (content_hash,),
+        ).fetchone()
+    else:
+        row = conn.execute(
+            "SELECT id FROM conversations WHERE content_hash = ? "
+            "AND provider_id = ? LIMIT 1",
+            (content_hash, provider_id),
+        ).fetchone()
     return row["id"] if row else None
 
 
@@ -251,7 +265,7 @@ def insert_conversation(conn, conversation_id, provider_id, title,
     now = utcnow()
 
     if existing is None:
-        twin_id = find_conversation_by_hash(conn, content_hash)
+        twin_id = find_conversation_by_hash(conn, content_hash, provider_id)
         if twin_id is not None:
             touch_conversation(conn, twin_id)
             return "duplicate"
@@ -314,9 +328,21 @@ def add_conversation_to_chain(conn, chain_id, conversation_id, position):
 
 
 def clear_chains(conn):
-    """Drop all chains so detection can run again from scratch."""
+    """Drop all chains so detection can run again from scratch.
+
+    The AUTOINCREMENT counter is reset too.  Detection rebuilds every chain on
+    every import, so without this the ids climb forever and a library with two
+    chains ends up numbering them 47 and 48.  Resetting keeps them small and
+    makes them a function of the library's contents rather than of how many
+    times it has been imported into.
+    """
     conn.execute("DELETE FROM conversation_chain_members")
     conn.execute("DELETE FROM conversation_chains")
+    try:
+        conn.execute("DELETE FROM sqlite_sequence WHERE name = ?",
+                     ("conversation_chains",))
+    except Exception:
+        pass  # no AUTOINCREMENT rows have been written yet
 
 
 # --------------------------------------------------------------------------

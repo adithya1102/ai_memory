@@ -1,0 +1,47 @@
+[
+  {
+    "conversation_id": "gm-001",
+    "title": "Weekly gym routine for endurance",
+    "create_time": "2025-03-22T07:30:00Z",
+    "update_time": "2025-03-22T07:45:00Z",
+    "messages": [
+      {
+        "author": "user",
+        "create_time": "2025-03-22T07:30:00Z",
+        "text": "I want to get fitter and have more stamina. What weekly gym routine should I follow?"
+      },
+      {
+        "author": "model",
+        "create_time": "2025-03-22T07:32:00Z",
+        "text": "Here is a 5-day endurance-focused plan:\n\nMonday - 40 minutes steady-state cardio, zone 2\nTuesday - full-body circuit, light weights, high reps\nWednesday - intervals: 8 x 400m with 90 seconds recovery\nThursday - active recovery, mobility and a long walk\nFriday - tempo run, 25 minutes at a comfortably hard pace\nWeekend - one long easy session, build to 90 minutes\n\nKeep about 80% of the volume easy. Most people ruin their endurance progress by running their easy days too hard."
+      },
+      {
+        "author": "user",
+        "create_time": "2025-03-22T07:44:00Z",
+        "text": "Should I lift heavy as well?"
+      },
+      {
+        "author": "model",
+        "create_time": "2025-03-22T07:45:00Z",
+        "text": "Two short strength sessions per week is enough alongside this volume. Heavy lifting and high-volume endurance work compete for recovery, so if you want to prioritise stamina, keep the lifting to compound movements and low sets."
+      }
+    ]
+  },
+  {
+    "conversation_id": "gm-002",
+    "title": "Hydration and electrolytes",
+    "create_time": "2025-03-24T06:10:00Z",
+    "messages": [
+      {
+        "author": "user",
+        "create_time": "2025-03-24T06:10:00Z",
+        "text": "Do I need electrolyte drinks for an hour-long session?"
+      },
+      {
+        "author": "model",
+        "create_time": "2025-03-24T06:11:00Z",
+        "text": "For under 60 to 90 minutes in temperate conditions, water is fine. Electrolytes start to matter when you are sweating heavily, training in heat, or going beyond about 90 minutes."
+      }
+    ]
+  }
+]

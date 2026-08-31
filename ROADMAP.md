@@ -53,19 +53,24 @@ Also unresolved: what a good result looks like when the consumer is a model
 rather than a person. Ten snippets is probably wrong; one well-chosen
 conversation with its chain is probably closer.
 
-## v0.4 — Additional providers
+## v0.4 — Additional providers ✅ shipped
 
 The storage format is already provider-agnostic; nothing else is yet.
 
 - Claude export adapter
 - Gemini export adapter
-- A documented adapter contract so a new provider is one file
-  (see [CONTRIBUTING.md](CONTRIBUTING.md))
-- Cross-provider chains: the same topic asked of two different assistants
-- Per-provider filters in search
+- Provider sniffed from the file's shape, so importing never asks which
+  assistant a file came from
+- Cross-provider chains: a project worked on with two assistants reads as one
+  thread (see the [demo](docs/demo.md#5-the-chains))
+- Deduplication scoped per provider, so the same question asked of two
+  assistants stays two conversations
 
-The work is mostly in the parsers. Every vendor exports a different shape,
-and the shapes change without notice.
+**Still open.** Per-provider filters in search are not built. The Gemini
+adapter targets a documented shape rather than a verified one — Takeout's
+format is not publicly specified and has changed more than once. Every vendor
+exports a different shape and changes it without notice, so this milestone is
+never really finished.
 
 ## v0.5 — Android client
 

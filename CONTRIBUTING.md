@@ -37,7 +37,10 @@ backend/
 │   ├── server.py       MCP transports. Protocol only, no tool logic.
 │   └── tools.py        The three MCP tools. Calls into core/, never duplicates it.
 ├── providers/
-│   └── chatgpt_importer.py    One file per provider. Parsing lives here.
+│   ├── chatgpt_importer.py    Message-tree format.
+│   ├── claude_importer.py     Flat chat_messages format.
+│   ├── gemini_importer.py     Flat messages format, "model" author.
+│   └── common.py              Shared hash + upsert. Parsing stays per-provider.
 ├── web/
 │   ├── app.py          Flask routes. Thin — it calls into core/.
 │   ├── templates/      Jinja2. No build step.
@@ -81,7 +84,9 @@ It must:
 
 ### Worked example
 
-`backend/providers/claude_importer.py`:
+`backend/providers/claude_importer.py` — this one is now shipped, so the real
+file is the better reference; the version below is kept because it is the
+smallest complete example of the contract:
 
 ```python
 """Importer for Claude conversation exports."""
@@ -177,14 +182,26 @@ def import_claude_export(conn, json_file_path):
     return stats
 ```
 
-Then register it in `backend/core/importer.py`:
+Then register it in `_importers()` in `backend/core/importer.py`:
 
 ```python
-importers = {
-    "chatgpt": import_chatgpt_export,
-    "claude": import_claude_export,      # <- add this
-}
+def _importers():
+    from backend.providers.chatgpt_importer import import_chatgpt_export
+    from backend.providers.claude_importer import import_claude_export
+    from backend.providers.gemini_importer import import_gemini_export
+
+    return {
+        "chatgpt": import_chatgpt_export,
+        "claude": import_claude_export,
+        "gemini": import_gemini_export,     # <- add yours here
+    }
 ```
+
+And teach `detect_provider()` to recognise the shape, by exporting a
+`looks_like_<provider>_export(payload)` predicate from your module. Sniffing
+is what lets a user import a file without saying where it came from. Look for
+markers no other vendor emits — Gemini's giveaway is an author of `"model"` —
+and return False when unsure rather than claiming an ambiguous file.
 
 That is the whole integration. FTS indexing, embeddings, chain detection and
 deduplication all apply automatically, because they operate on the universal
@@ -218,7 +235,7 @@ python tests/run_all.py           # everything
 python tests/test_core.py         # one suite
 ```
 
-332 checks across five suites. All of them use temporary databases and never
+373 checks across six suites. All of them use temporary databases and never
 touch `data/`, so you cannot lose a real library by running them.
 
 | Suite | Covers |
@@ -228,6 +245,7 @@ touch `data/`, so you cannot lose a real library by running them.
 | `test_semantic.py` | Chunking, embedding, incremental re-embedding, hybrid ranking |
 | `test_preload.py` | Background model loading, the loading banner, fallback |
 | `test_mcp.py` | MCP tools, the stdio JSON-RPC protocol, TCP transport, degradation |
+| `test_providers.py` | Claude/Gemini adapters, provider sniffing, cross-provider search |
 
 The semantic suites skip themselves with a note when sentence-transformers is
 not installed, so a keyword-only checkout still runs a clean suite.

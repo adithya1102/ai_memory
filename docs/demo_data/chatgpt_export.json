@@ -1,0 +1,310 @@
+[
+  {
+    "id": "cg-001",
+    "conversation_id": "cg-001",
+    "title": "Welcome",
+    "create_time": 1740787200.0,
+    "update_time": 1740787440.0,
+    "mapping": {
+      "root": {
+        "id": "root",
+        "message": null,
+        "parent": null,
+        "children": [
+          "n0"
+        ]
+      },
+      "n0": {
+        "id": "n0",
+        "parent": "root",
+        "children": [
+          "n1"
+        ],
+        "message": {
+          "id": "m0",
+          "author": {
+            "role": "user",
+            "name": null,
+            "metadata": {}
+          },
+          "create_time": 1740787200.0,
+          "content": {
+            "content_type": "text",
+            "parts": [
+              "I want to build muscle and start going to the gym. What should my workout plan look like for a beginner?"
+            ]
+          },
+          "status": "finished_successfully",
+          "metadata": {}
+        }
+      },
+      "n1": {
+        "id": "n1",
+        "parent": "n0",
+        "children": [
+          "n2"
+        ],
+        "message": {
+          "id": "m1",
+          "author": {
+            "role": "assistant",
+            "name": null,
+            "metadata": {}
+          },
+          "create_time": 1740787260.0,
+          "content": {
+            "content_type": "text",
+            "parts": [
+              "Here is a 4-day upper/lower split, which is the sweet spot for a beginner who can train four times a week:\n\nDay 1 - Upper (push): bench press, overhead press, dips\nDay 2 - Lower: squats, Romanian deadlifts, calf raises\nDay 3 - Rest\nDay 4 - Upper (pull): rows, pull-ups, face pulls\nDay 5 - Lower: deadlifts, lunges, leg curls\n\nThree sets of 8-12 reps per exercise, 90 seconds of rest between sets. Add weight or reps every week - progressive overload is the whole game."
+            ]
+          },
+          "status": "finished_successfully",
+          "metadata": {}
+        }
+      },
+      "n2": {
+        "id": "n2",
+        "parent": "n1",
+        "children": [
+          "n3"
+        ],
+        "message": {
+          "id": "m2",
+          "author": {
+            "role": "user",
+            "name": null,
+            "metadata": {}
+          },
+          "create_time": 1740787320.0,
+          "content": {
+            "content_type": "text",
+            "parts": [
+              "How much protein should I eat daily? I weigh 75 kg."
+            ]
+          },
+          "status": "finished_successfully",
+          "metadata": {}
+        }
+      },
+      "n3": {
+        "id": "n3",
+        "parent": "n2",
+        "children": [],
+        "message": {
+          "id": "m3",
+          "author": {
+            "role": "assistant",
+            "name": null,
+            "metadata": {}
+          },
+          "create_time": 1740787380.0,
+          "content": {
+            "content_type": "text",
+            "parts": [
+              "For muscle building, aim for 1.6-2.2 grams of protein per kilogram of bodyweight. At 75 kg that is 120-165 grams daily. Good sources: chicken breast, eggs, Greek yogurt, lentils and whey powder."
+            ]
+          },
+          "status": "finished_successfully",
+          "metadata": {}
+        }
+      }
+    },
+    "current_node": "n3",
+    "default_model_slug": "gpt-4o"
+  },
+  {
+    "id": "cg-002",
+    "conversation_id": "cg-002",
+    "title": "Gusto forecasting discussion",
+    "create_time": 1741824000.0,
+    "update_time": 1741824120.0,
+    "mapping": {
+      "root": {
+        "id": "root",
+        "message": null,
+        "parent": null,
+        "children": [
+          "n0"
+        ]
+      },
+      "n0": {
+        "id": "n0",
+        "parent": "root",
+        "children": [
+          "n1"
+        ],
+        "message": {
+          "id": "m0",
+          "author": {
+            "role": "user",
+            "name": null,
+            "metadata": {}
+          },
+          "create_time": 1741824000.0,
+          "content": {
+            "content_type": "text",
+            "parts": [
+              "Continuing our Gusto discussion - how do I handle seasonality in the Prophet model?"
+            ]
+          },
+          "status": "finished_successfully",
+          "metadata": {}
+        }
+      },
+      "n1": {
+        "id": "n1",
+        "parent": "n0",
+        "children": [],
+        "message": {
+          "id": "m1",
+          "author": {
+            "role": "assistant",
+            "name": null,
+            "metadata": {}
+          },
+          "create_time": 1741824060.0,
+          "content": {
+            "content_type": "text",
+            "parts": [
+              "Prophet handles seasonality with Fourier series. For restaurant data: set yearly_seasonality=True to capture holiday patterns, weekly_seasonality=True for the weekday/weekend split, and add custom holiday effects for Thanksgiving and Christmas. If the residuals show autocorrelation, tune changepoint_prior_scale."
+            ]
+          },
+          "status": "finished_successfully",
+          "metadata": {}
+        }
+      }
+    },
+    "current_node": "n1",
+    "default_model_slug": "gpt-4o"
+  },
+  {
+    "id": "cg-003",
+    "conversation_id": "cg-003",
+    "title": "Sourdough starter troubleshooting",
+    "create_time": 1742515200.0,
+    "update_time": 1742515320.0,
+    "mapping": {
+      "root": {
+        "id": "root",
+        "message": null,
+        "parent": null,
+        "children": [
+          "n0"
+        ]
+      },
+      "n0": {
+        "id": "n0",
+        "parent": "root",
+        "children": [
+          "n1"
+        ],
+        "message": {
+          "id": "m0",
+          "author": {
+            "role": "user",
+            "name": null,
+            "metadata": {}
+          },
+          "create_time": 1742515200.0,
+          "content": {
+            "content_type": "text",
+            "parts": [
+              "My sourdough starter isn't rising. It's day 5 and there are no bubbles. What's wrong?"
+            ]
+          },
+          "status": "finished_successfully",
+          "metadata": {}
+        }
+      },
+      "n1": {
+        "id": "n1",
+        "parent": "n0",
+        "children": [],
+        "message": {
+          "id": "m1",
+          "author": {
+            "role": "assistant",
+            "name": null,
+            "metadata": {}
+          },
+          "create_time": 1742515260.0,
+          "content": {
+            "content_type": "text",
+            "parts": [
+              "Day 5 with no bubbles usually means one of four things: chlorinated water, a room below 24C, flour with too few nutrients, or a feeding ratio that is too lean. Switch to rye flour and filtered water, feed twice daily at 1:1:1, and you should see activity within 48 hours."
+            ]
+          },
+          "status": "finished_successfully",
+          "metadata": {}
+        }
+      }
+    },
+    "current_node": "n1",
+    "default_model_slug": "gpt-4o"
+  },
+  {
+    "id": "cg-004",
+    "conversation_id": "cg-004",
+    "title": "Sourdough starter feeding schedule",
+    "create_time": 1743120000.0,
+    "update_time": 1743120120.0,
+    "mapping": {
+      "root": {
+        "id": "root",
+        "message": null,
+        "parent": null,
+        "children": [
+          "n0"
+        ]
+      },
+      "n0": {
+        "id": "n0",
+        "parent": "root",
+        "children": [
+          "n1"
+        ],
+        "message": {
+          "id": "m0",
+          "author": {
+            "role": "user",
+            "name": null,
+            "metadata": {}
+          },
+          "create_time": 1743120000.0,
+          "content": {
+            "content_type": "text",
+            "parts": [
+              "My starter is active now. How often should I feed it? Can I keep it in the fridge?"
+            ]
+          },
+          "status": "finished_successfully",
+          "metadata": {}
+        }
+      },
+      "n1": {
+        "id": "n1",
+        "parent": "n0",
+        "children": [],
+        "message": {
+          "id": "m1",
+          "author": {
+            "role": "assistant",
+            "name": null,
+            "metadata": {}
+          },
+          "create_time": 1743120060.0,
+          "content": {
+            "content_type": "text",
+            "parts": [
+              "For fridge storage feed once per week at 1:2:2 and bring it to room temperature the night before you bake. On the counter, feed every 12 hours at 1:1:1. Discard half before every feed."
+            ]
+          },
+          "status": "finished_successfully",
+          "metadata": {}
+        }
+      }
+    },
+    "current_node": "n1",
+    "default_model_slug": "gpt-4o"
+  }
+]

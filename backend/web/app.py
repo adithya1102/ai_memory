@@ -235,18 +235,19 @@ def create_app(db_path=db.DB_PATH, imports_dir=db.IMPORTS_DIR):
             return redirect(url_for("import_export"))
 
         try:
-            stats = import_file(connection(), source_path, provider="chatgpt")
+            stats = import_file(connection(), source_path)   # provider sniffed
         except Exception as exc:  # noqa: BLE001 - surfaced to the user
             flash("Import failed: %s" % exc, "error")
             return redirect(url_for("import_export"))
 
         flash(
             "Imported %d new, %d updated, %d unchanged, %d duplicate "
-            "(%d messages, %d skipped) — %d chains detected, "
+            "(%d messages, %d skipped) — detected %s, %d chains, "
             "%d conversations embedded."
             % (stats["inserted"], stats["updated"], stats["unchanged"],
                stats.get("duplicate", 0), stats["messages"], stats["skipped"],
-               stats["chains"], stats.get("embedded", 0)),
+               stats.get("provider", "chatgpt"), stats["chains"],
+               stats.get("embedded", 0)),
             "success",
         )
         if stats.get("embedding_note"):

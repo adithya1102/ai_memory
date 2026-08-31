@@ -20,6 +20,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SUITES = [
     ("test_core.py", "import, FTS search, chains, routes", False),
     ("test_dedup_and_chains.py", "deduplication and chain detection", False),
+    ("test_providers.py", "Claude/Gemini adapters, provider sniffing", True),
     ("test_semantic.py", "chunking, embeddings, hybrid ranking", True),
     ("test_preload.py", "background model loading and fallback", True),
     ("test_mcp.py", "MCP tools, stdio protocol, TCP transport", True),

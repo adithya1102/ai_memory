@@ -1,0 +1,47 @@
+[
+  {
+    "uuid": "cl-001",
+    "name": "Gusto demand model architecture",
+    "created_at": "2025-03-08T09:14:00Z",
+    "updated_at": "2025-03-08T09:41:00Z",
+    "chat_messages": [
+      {
+        "sender": "human",
+        "created_at": "2025-03-08T09:14:00Z",
+        "text": "Let's design the Gusto architecture for demand forecasting. I need to predict restaurant covers for next quarter."
+      },
+      {
+        "sender": "assistant",
+        "created_at": "2025-03-08T09:16:00Z",
+        "text": "A hybrid approach works well here:\n\n1. Time-series baseline (ARIMA or Prophet) for trend and seasonality\n2. Feature engineering for holidays, weather and local events\n3. Gradient boosting on the residuals to capture what the baseline misses\n\nStart with 12 months of historical covers, split 80/20 for train and validation, and measure against a naive seasonal-average baseline so you know the model earns its complexity."
+      },
+      {
+        "sender": "human",
+        "created_at": "2025-03-08T09:39:00Z",
+        "text": "How do I serve the forecast to the POS terminals?"
+      },
+      {
+        "sender": "assistant",
+        "created_at": "2025-03-08T09:41:00Z",
+        "text": "Precompute nightly and cache. The terminals should read a materialised table, never call the model synchronously - a POS that blocks on inference is a POS that stops taking orders when inference is slow."
+      }
+    ]
+  },
+  {
+    "uuid": "cl-002",
+    "name": "Postgres connection pooling",
+    "created_at": "2025-03-15T18:02:00Z",
+    "chat_messages": [
+      {
+        "sender": "human",
+        "created_at": "2025-03-15T18:02:00Z",
+        "text": "How many connections should pgbouncer allow for a small Django app?"
+      },
+      {
+        "sender": "assistant",
+        "created_at": "2025-03-15T18:03:00Z",
+        "text": "Size the pool to your database's core count, not your application's worker count. For a small app, default_pool_size of 20 in transaction mode is plenty. More connections than cores makes Postgres slower, not faster."
+      }
+    ]
+  }
+]
