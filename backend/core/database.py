@@ -63,6 +63,35 @@ CREATE TABLE IF NOT EXISTS conversation_chain_members (
     PRIMARY KEY (chain_id, conversation_id)
 );
 
+-- Semantic search bookkeeping.  The vectors themselves live in a sqlite-vec
+-- virtual table created by backend/core/embeddings.py, keyed by chunks.id;
+-- these two tables work with or without the extension installed.
+CREATE TABLE IF NOT EXISTS chunks (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    conversation_id TEXT NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+    chunk_index     INTEGER NOT NULL,
+    role            TEXT,
+    content         TEXT NOT NULL,
+    UNIQUE (conversation_id, chunk_index)
+);
+
+-- One row per embedded conversation; content_hash is what makes re-embedding
+-- incremental.
+CREATE TABLE IF NOT EXISTS embedded_conversations (
+    conversation_id TEXT PRIMARY KEY REFERENCES conversations(id) ON DELETE CASCADE,
+    content_hash    TEXT,
+    model           TEXT,
+    chunk_count     INTEGER,
+    embedded_at     TEXT
+);
+
+CREATE TABLE IF NOT EXISTS settings (
+    key   TEXT PRIMARY KEY,
+    value TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_chunks_conversation
+    ON chunks(conversation_id);
 CREATE INDEX IF NOT EXISTS idx_messages_conversation
     ON messages(conversation_id, message_order);
 CREATE INDEX IF NOT EXISTS idx_conversations_provider
@@ -288,6 +317,38 @@ def clear_chains(conn):
     """Drop all chains so detection can run again from scratch."""
     conn.execute("DELETE FROM conversation_chain_members")
     conn.execute("DELETE FROM conversation_chains")
+
+
+# --------------------------------------------------------------------------
+# Settings
+# --------------------------------------------------------------------------
+
+def get_setting(conn, key, default=None):
+    row = conn.execute(
+        "SELECT value FROM settings WHERE key = ?", (key,)
+    ).fetchone()
+    return row["value"] if row else default
+
+
+def set_setting(conn, key, value):
+    conn.execute(
+        """INSERT INTO settings (key, value) VALUES (?, ?)
+           ON CONFLICT(key) DO UPDATE SET value = excluded.value""",
+        (key, str(value)),
+    )
+    conn.commit()
+
+
+def get_flag(conn, key, default=True):
+    """Read a boolean setting."""
+    value = get_setting(conn, key)
+    if value is None:
+        return default
+    return value == "1"
+
+
+def set_flag(conn, key, enabled):
+    set_setting(conn, key, "1" if enabled else "0")
 
 
 # --------------------------------------------------------------------------

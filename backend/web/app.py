@@ -17,8 +17,9 @@ from flask import (Flask, abort, flash, g, redirect, render_template, request,
 from werkzeug.utils import secure_filename
 
 from backend.core import database as db
+from backend.core import embeddings
 from backend.core.importer import detect_chains, import_file
-from backend.core.search import search_conversations
+from backend.core.search import SEMANTIC_ENABLED_KEY, hybrid_search
 
 
 def create_app(db_path=db.DB_PATH, imports_dir=db.IMPORTS_DIR):
@@ -74,11 +75,18 @@ def create_app(db_path=db.DB_PATH, imports_dir=db.IMPORTS_DIR):
 
     @app.route("/search")
     def search():
+        conn = connection()
         query = (request.args.get("q") or "").strip()
         if not query:
             return redirect(url_for("index"))
-        results = search_conversations(connection(), query, limit=50)
-        return render_template("results.html", query=query, results=results)
+        semantic_on = db.get_flag(conn, SEMANTIC_ENABLED_KEY, default=True)
+        results = hybrid_search(conn, query, limit=50)
+        return render_template(
+            "results.html", query=query, results=results,
+            semantic_on=semantic_on,
+            semantic_used=any("semantic" in r["match_types"] for r in results),
+            has_embeddings=embeddings.has_embeddings(conn),
+        )
 
     @app.route("/conversation/<path:conversation_id>")
     def conversation(conversation_id):
@@ -115,7 +123,37 @@ def create_app(db_path=db.DB_PATH, imports_dir=db.IMPORTS_DIR):
             db_path=os.path.abspath(app.config["DB_PATH"]),
             imports_dir=os.path.abspath(app.config["IMPORTS_DIR"]),
             db_size=_file_size(app.config["DB_PATH"]),
+            semantic_on=db.get_flag(conn, SEMANTIC_ENABLED_KEY, default=True),
+            embedding=embeddings.embedding_stats(conn),
         )
+
+    @app.route("/settings/semantic", methods=["POST"])
+    def toggle_semantic():
+        conn = connection()
+        enabled = request.form.get("enabled") == "1"
+        db.set_flag(conn, SEMANTIC_ENABLED_KEY, enabled)
+        flash("Semantic search %s." % ("enabled" if enabled else "disabled"),
+              "success")
+        return redirect(url_for("settings"))
+
+    @app.route("/embeddings/rebuild", methods=["POST"])
+    def rebuild_embeddings():
+        conn = connection()
+        try:
+            result = embeddings.sync_embeddings(conn)
+        except Exception as exc:  # noqa: BLE001 - surfaced to the user
+            flash("Embedding failed: %s" % exc, "error")
+            return redirect(url_for("settings"))
+        if result["skipped"]:
+            flash("Semantic search unavailable: %s" % result["skipped"], "error")
+        elif result["conversations"] == 0:
+            flash("Semantic index is already up to date.", "success")
+        else:
+            flash("Embedded %d conversation%s into %d chunks."
+                  % (result["conversations"],
+                     "" if result["conversations"] == 1 else "s",
+                     result["chunks"]), "success")
+        return redirect(url_for("settings"))
 
     @app.route("/import", methods=["GET", "POST"])
     def import_export():
@@ -150,12 +188,15 @@ def create_app(db_path=db.DB_PATH, imports_dir=db.IMPORTS_DIR):
 
         flash(
             "Imported %d new, %d updated, %d unchanged, %d duplicate "
-            "(%d messages, %d skipped) — %d chains detected."
+            "(%d messages, %d skipped) — %d chains detected, "
+            "%d conversations embedded."
             % (stats["inserted"], stats["updated"], stats["unchanged"],
                stats.get("duplicate", 0), stats["messages"], stats["skipped"],
-               stats["chains"]),
+               stats["chains"], stats.get("embedded", 0)),
             "success",
         )
+        if stats.get("embedding_note"):
+            flash("Semantic indexing: %s" % stats["embedding_note"], "error")
         return redirect(url_for("index"))
 
     @app.route("/rebuild-chains", methods=["POST"])

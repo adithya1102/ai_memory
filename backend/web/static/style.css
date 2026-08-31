@@ -132,6 +132,33 @@ a.card:hover { border-color: var(--accent); text-decoration: none; }
 .meta { font-size: 12.5px; color: var(--muted); }
 .meta .dot { margin: 0 6px; opacity: .5; }
 
+/* ---------- match badges ---------- */
+.badge {
+    display: inline-block;
+    vertical-align: 2px;
+    margin-left: 8px;
+    padding: 1px 8px;
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    border-radius: 99px;
+    border: 1px solid currentColor;
+    opacity: .85;
+}
+.badge.keyword  { color: #6b6a66; }
+.badge.semantic { color: #4a6fa5; }
+.badge.both     { color: #2f6f4f; }
+
+@media (prefers-color-scheme: dark) {
+    .badge.keyword  { color: #9a9aa2; }
+    .badge.semantic { color: #8fb3e8; }
+    .badge.both     { color: #7fc4a0; }
+}
+
+button.toggle.on  { border-color: var(--user); color: var(--user); font-weight: 600; }
+button.toggle.off { opacity: .7; }
+
 .pill {
     display: inline-block;
     padding: 2px 9px;

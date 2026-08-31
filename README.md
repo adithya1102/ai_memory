@@ -22,6 +22,15 @@ python backend/main.py
 
 A desktop window opens on `http://127.0.0.1:5000`.
 
+`sentence-transformers` and `sqlite-vec` are only needed for semantic search,
+and pull in PyTorch. If you would rather not install them, everything else
+works — the app detects their absence, says so in Settings, and searches by
+keyword alone:
+
+```bash
+pip install flask pywebview     # keyword-only install
+```
+
 Options:
 
 ```bash
@@ -57,9 +66,23 @@ Want to try it before exporting your own history? Import the included
 
 ### 3. Search
 
-The search box queries conversation titles *and* every message body. Results
-show a highlighted snippet, the provider, the date, and a relevance score.
-Terms are ANDed together, and `"double quotes"` searches an exact phrase.
+The search box queries conversation titles *and* every message body, by keyword
+and by meaning at once. Results show a snippet, the provider, the date, and a
+badge saying where the hit came from:
+
+| Badge | Meaning |
+|---|---|
+| `keyword` | matched the words you typed |
+| `semantic` | matched the *meaning*, not the words |
+| `both` | found by both, which usually means it is the right answer |
+
+Keyword terms are ANDed together, and `"double quotes"` searches an exact
+phrase. Semantic search finds conversations that share no words with your
+query at all — searching *"how do I get stronger"* surfaces a conversation
+about building muscle and gym routines.
+
+Semantic search can be switched off in **Settings**, which falls back to
+keyword-only results.
 
 ## How it works
 
@@ -68,8 +91,9 @@ ai_memory/
 ├── backend/
 │   ├── core/
 │   │   ├── database.py   schema, FTS5 table + sync triggers, queries
+│   │   ├── embeddings.py chunking, local embeddings, vector search
 │   │   ├── importer.py   import orchestration, chain detection
-│   │   └── search.py     FTS5 query building, ranking, snippets
+│   │   └── search.py     FTS5 queries, semantic/keyword fusion
 │   ├── providers/
 │   │   └── chatgpt_importer.py   parses ChatGPT's export format
 │   ├── web/
@@ -83,10 +107,11 @@ ai_memory/
 
 ### Storage
 
-Five tables — `providers`, `conversations`, `messages`,
-`conversation_chains`, `conversation_chain_members` — plus an FTS5 virtual
-table `conversation_fts` holding one row per conversation: its title and all of
-its messages concatenated.
+Core tables — `providers`, `conversations`, `messages`, `conversation_chains`,
+`conversation_chain_members` — plus an FTS5 virtual table `conversation_fts`
+holding one row per conversation: its title and all of its messages
+concatenated. Semantic search adds `chunks`, `embedded_conversations` and the
+`chunk_vectors` vector table; `settings` holds the UI toggles.
 
 That index is maintained by triggers rather than by application code, so it
 cannot drift out of sync no matter who writes to the database. The FTS row
@@ -96,6 +121,38 @@ message appends to the document; updates and deletes rebuild it.
 
 Search is `bm25()`-ranked with title matches weighted above body matches, and
 snippets come from FTS5's `snippet()`.
+
+### Semantic search
+
+Messages are chunked, embedded with
+[sentence-transformers](https://www.sbert.net/) using **all-MiniLM-L6-v2**
+(384 dimensions), and the vectors are stored in a
+[sqlite-vec](https://github.com/asg017/sqlite-vec) virtual table — in the same
+database file as everything else. No server, no separate vector store, nothing
+leaves the machine. The model is ~90 MB and downloads on first use.
+
+Chunking has two rules worth knowing. Chunks never span two messages, so a
+question and an unrelated later answer are not blended into one vector. And
+chunks are measured in **model tokens, not words**: this model truncates at 256
+word-piece tokens, so a 500-token chunk would have half its text silently
+ignored by the encoder while still looking indexed. Windows are 220 tokens with
+40 of overlap, sliced by character offset so the stored text keeps its original
+casing, and snapped out to whole words so no chunk ends mid-word.
+
+Embedding is incremental. Each embedded conversation records the
+`content_hash` it was built from, so a re-import only re-embeds what actually
+changed, and re-running costs nothing when nothing has.
+
+At query time the two engines run independently and are merged by **Reciprocal
+Rank Fusion** — each conversation scores `Σ 1/(60 + rank)` across the lists it
+appears in. RRF needs no normalisation between a bm25 rank and a cosine
+similarity, which are not on comparable scales, and it naturally rewards
+conversations both engines agree on. Results are deduplicated by conversation,
+keeping each one's best-matching chunk.
+
+Every layer degrades to keyword-only rather than failing: the toggle being off,
+the libraries not installed, the model not downloaded, or nothing embedded yet
+all produce the same fallback.
 
 ### Parsing ChatGPT exports
 
@@ -142,8 +199,14 @@ conversation chains** re-runs detection over the whole library.
 ## Limitations
 
 - ChatGPT is the only supported provider.
-- Search is lexical (FTS5 with Porter stemming), not semantic — it matches
-  words, not meanings.
+- Semantic matches are ranked but not thresholded aggressively: a weak match
+  (~0.16 cosine) can appear low in the list. It is badged `semantic` and shows
+  its similarity, so you can see what it is. `MIN_SIMILARITY` in
+  `backend/core/embeddings.py` is the dial.
+- The encoder loads lazily and takes a few seconds; the first search after
+  starting the app pays that cost once, then it is cached for the process.
+- Vector search is exact (brute-force KNN over every chunk), which is fine for
+  a personal library but not for millions of chunks.
 - Chain detection uses titles only, never message content.
 - Import speed is roughly a minute per 45 MB of export (~2,000 conversations),
   because the search index is rebuilt incrementally as each message lands.

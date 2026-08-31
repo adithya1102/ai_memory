@@ -1,2 +1,6 @@
 flask
 pywebview
+
+# Semantic search (optional — keyword search works without these).
+sentence-transformers
+sqlite-vec

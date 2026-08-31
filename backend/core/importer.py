@@ -175,4 +175,24 @@ def import_file(conn, file_path, provider="chatgpt"):
 
     stats = importers[provider](conn, file_path)
     stats["chains"] = detect_chains(conn)
+    stats.update(embed_new_conversations(conn))
     return stats
+
+
+def embed_new_conversations(conn):
+    """Embed conversations that are new or changed, if semantic search is on.
+
+    Embedding must never break an import: the library is fully usable with
+    keyword search alone, so every failure here is reported and swallowed.
+    """
+    from backend.core.search import SEMANTIC_ENABLED_KEY
+
+    if not db.get_flag(conn, SEMANTIC_ENABLED_KEY, default=True):
+        return {"embedded": 0, "embedding_note": "semantic search is turned off"}
+    try:
+        from backend.core.embeddings import sync_embeddings
+        result = sync_embeddings(conn)
+        return {"embedded": result["conversations"],
+                "embedding_note": result["skipped"]}
+    except Exception as exc:  # noqa: BLE001 - surfaced, not raised
+        return {"embedded": 0, "embedding_note": str(exc)}

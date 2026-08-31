@@ -85,6 +85,106 @@ def search_conversations(conn, query, limit=20):
     return results
 
 
+SEMANTIC_ENABLED_KEY = "semantic_search_enabled"
+
+# Reciprocal Rank Fusion constant.  60 is the value from the original RRF
+# paper; it damps the head of each list so a strong hit in one ranking cannot
+# alone outrank something both rankings agree on.
+RRF_K = 60
+
+
+def _conversation_rows(conn, conversation_ids):
+    """Fetch display metadata for a set of conversations, keyed by id."""
+    if not conversation_ids:
+        return {}
+    placeholders = ",".join("?" * len(conversation_ids))
+    rows = conn.execute(
+        """SELECT c.id AS conversation_id, c.title, c.created_at, c.updated_at,
+                  p.display_name AS provider_name,
+                  (SELECT COUNT(*) FROM messages m
+                    WHERE m.conversation_id = c.id) AS message_count
+             FROM conversations c
+             JOIN providers p ON p.id = c.provider_id
+            WHERE c.id IN (%s)""" % placeholders,
+        list(conversation_ids),
+    ).fetchall()
+    return {r["conversation_id"]: dict(r) for r in rows}
+
+
+def hybrid_search(conn, query, limit=20, semantic=None, top_k=10):
+    """Search by keyword and by meaning, then merge into one ranking.
+
+    Results are deduplicated by conversation and carry a ``match_types`` list
+    of "keyword" and/or "semantic" so the UI can badge where each came from.
+    Ranking is Reciprocal Rank Fusion over the two result lists, which needs no
+    score normalisation between a bm25 rank and a cosine similarity.
+
+    ``semantic`` overrides the stored setting; when it is None the setting is
+    read from the database.  If semantic search is disabled or unavailable this
+    degrades to keyword-only results.
+    """
+    from backend.core import database as db
+    from backend.core import embeddings
+
+    if semantic is None:
+        semantic = db.get_flag(conn, SEMANTIC_ENABLED_KEY, default=True)
+
+    keyword_hits = search_conversations(conn, query, limit=limit)
+    semantic_hits = embeddings.semantic_search(conn, query, top_k=top_k) \
+        if semantic else []
+
+    merged = {}
+
+    for rank, hit in enumerate(keyword_hits, 1):
+        item = dict(hit)
+        item["match_types"] = ["keyword"]
+        item["score"] = 1.0 / (RRF_K + rank)
+        item["similarity"] = None
+        merged[hit["conversation_id"]] = item
+
+    # A conversation can be hit by several chunks; keep only its best one.
+    best_chunk = {}
+    for rank, hit in enumerate(semantic_hits, 1):
+        cid = hit["conversation_id"]
+        if cid not in best_chunk:
+            best_chunk[cid] = (rank, hit)
+
+    missing = [cid for cid in best_chunk if cid not in merged]
+    metadata = _conversation_rows(conn, missing)
+
+    for cid, (rank, hit) in best_chunk.items():
+        contribution = 1.0 / (RRF_K + rank)
+        if cid in merged:
+            item = merged[cid]
+            item["match_types"].append("semantic")
+            item["score"] += contribution
+            item["similarity"] = hit["similarity"]
+        else:
+            row = metadata.get(cid)
+            if row is None:  # chunk outlived its conversation
+                continue
+            item = dict(row)
+            item["match_types"] = ["semantic"]
+            item["score"] = contribution
+            item["similarity"] = hit["similarity"]
+            # No lexical match to highlight, so show the matching passage.
+            item["snippet"] = _shorten(hit["content"])
+            item["snippet_html"] = html.escape(item["snippet"])
+            item["match_score"] = hit["similarity"]
+            merged[cid] = item
+
+    results = sorted(merged.values(), key=lambda r: -r["score"])
+    for item in results:
+        item["match_label"] = ("both" if len(item["match_types"]) > 1
+                               else item["match_types"][0])
+    return results[:limit]
+
+
+def _shorten(text, length=240):
+    text = re.sub(r"\s+", " ", text or "").strip()
+    return text if len(text) <= length else text[:length].rstrip() + "…"
+
+
 def count_matches(conn, query):
     match = build_match_query(query)
     if not match:

@@ -9,14 +9,28 @@
 
   <h2>{{ results|length }} result{{ '' if results|length == 1 else 's' }} for “{{ query }}”</h2>
 
+  {% if semantic_on and not has_embeddings %}
+    <p class="hint">Keyword results only — nothing has been embedded yet.
+      <a href="{{ url_for('settings') }}">Build the semantic index</a> to also
+      match on meaning.</p>
+  {% elif not semantic_on %}
+    <p class="hint">Keyword results only — semantic search is turned off in
+      <a href="{{ url_for('settings') }}">Settings</a>.</p>
+  {% endif %}
+
   {% for r in results %}
     <a class="card" href="{{ url_for('conversation', conversation_id=r.conversation_id, q=query) }}">
-      <div class="title">{{ r.title or 'Untitled conversation' }}</div>
+      <div class="title">
+        {{ r.title or 'Untitled conversation' }}
+        <span class="badge {{ r.match_label }}">{{ r.match_label }}</span>
+      </div>
       <div class="meta">
         {{ r.provider_name }}<span class="dot">·</span>
         {{ r.created_at | datefmt }}<span class="dot">·</span>
-        {{ r.message_count }} messages<span class="dot">·</span>
-        score {{ r.match_score }}
+        {{ r.message_count }} messages
+        {% if r.similarity is not none %}
+          <span class="dot">·</span>{{ (r.similarity * 100) | round | int }}% similar
+        {% endif %}
       </div>
       <p class="snippet">{{ r.snippet_html | safe }}</p>
     </a>

@@ -20,6 +20,39 @@
     <tr><th>Last import</th><td class="value">{{ stats.last_import | datefmt('%d %b %Y, %H:%M') }}</td></tr>
   </table>
 
+  <h2>Semantic search</h2>
+  <table>
+    <tr>
+      <th>Enable semantic search</th>
+      <td class="value">
+        <form method="post" action="{{ url_for('toggle_semantic') }}">
+          <input type="hidden" name="enabled" value="{{ '0' if semantic_on else '1' }}">
+          <button class="secondary toggle {{ 'on' if semantic_on else 'off' }}" type="submit">
+            {{ 'On' if semantic_on else 'Off' }}
+          </button>
+        </form>
+      </td>
+    </tr>
+    <tr><th>Model</th><td class="value"><code>{{ embedding.model }}</code></td></tr>
+    <tr><th>Dimensions</th><td class="value">{{ embedding.dimensions }}</td></tr>
+    <tr><th>Conversations embedded</th>
+        <td class="value">{{ embedding.embedded }} / {{ embedding.conversations }}</td></tr>
+    <tr><th>Chunks indexed</th><td class="value">{{ embedding.chunks }}</td></tr>
+  </table>
+
+  {% if not embedding.available %}
+    <p class="hint">Semantic search is unavailable: {{ embedding.reason }}.
+      Keyword search is unaffected.</p>
+  {% elif embedding.pending %}
+    <p class="hint">{{ embedding.pending }} conversation(s) not embedded yet.</p>
+  {% endif %}
+
+  <form method="post" action="{{ url_for('rebuild_embeddings') }}">
+    <button class="secondary" type="submit">Build semantic index</button>
+    <p class="hint">Embeds anything new or changed since the last run. The first
+      run downloads the model (~90&nbsp;MB) and may take a minute.</p>
+  </form>
+
   <h2>Providers connected</h2>
   <table>
     <tr><th>Provider</th><th class="value">Conversations</th></tr>
