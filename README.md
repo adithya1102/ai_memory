@@ -1,14 +1,102 @@
 # AI Memory
 
-A local-first personal memory layer for AI conversations.
+![Python](https://img.shields.io/badge/python-3.10%2B-blue)
+![License](https://img.shields.io/badge/license-MIT-green)
+![Tests](https://img.shields.io/badge/tests-255%20passing-brightgreen)
+![Local first](https://img.shields.io/badge/data-100%25%20local-informational)
 
-Export your chat history out of an AI assistant, import it here, and search
-across everything you have ever asked — by **content**, not just by title.
-Everything lives in a single SQLite file on your own machine; nothing is
-uploaded anywhere.
+**A local-first memory layer for your AI conversations. Search everything you
+have ever asked — by keyword and by meaning — without any of it leaving your
+machine.**
 
-This is the MVP: ChatGPT import, full-text search, a conversation viewer, and
-simple conversation chains.
+## The problem
+
+*"I remember discussing this. I have no idea which session it was in."*
+
+You worked out a deployment strategy with an assistant three months ago. You
+remember the conclusion. You cannot remember the wording, the title, or the
+day. So you scroll — and the sidebar only shows titles, most of them
+auto-generated and useless. "Project discussion." "New chat." "Untitled."
+
+The conversation is right there. You just cannot find it. Your most useful
+thinking is locked in a list you can only search by the one field that carries
+the least information.
+
+## The solution
+
+AI Memory imports your exported chat history into a single SQLite file on your
+own machine and makes all of it searchable.
+
+Two engines run over it at once. **Keyword search** finds the words you
+actually typed. **Semantic search** finds the conversation when you cannot
+remember a single word of it — matching on meaning, using embeddings computed
+locally. Results are merged, deduplicated, and badged so you can see which
+engine found what.
+
+## Demo
+
+Both of these searches return the same conversation — one titled simply
+*"Welcome"*, whose text never contains the phrase you searched for:
+
+```
+$ search "gym workout"
+
+  Welcome                                             [both]  1 message match
+  ChatGPT · 23 Aug 2024 · 4 messages
+  "I want to build muscle and start going to the gym. What should my
+   workout plan look like for a beginner?"
+```
+
+Fair enough — those words are in the text. Now the one keyword search cannot do:
+
+```
+$ search "how do I get stronger"
+
+  Welcome                                     [semantic]  39% similar
+  ChatGPT · 23 Aug 2024 · 4 messages
+  "I want to build muscle and start going to the gym. What should my
+   workout plan look like for a beginner?"
+```
+
+Not one word of *"how do I get stronger"* appears anywhere in that
+conversation. Keyword search returns nothing at all for it. The embedding
+knows that getting stronger and building muscle are the same question.
+
+## Why local-first?
+
+Your chat history is not a pile of search queries. It is medical questions,
+salary negotiations, code from work, relationship advice, half-formed business
+ideas, and things you would not say out loud. It is one of the most revealing
+datasets you will ever generate.
+
+So AI Memory is built so that uploading it is not possible, rather than merely
+discouraged:
+
+- **No network calls.** The app talks to `127.0.0.1` and nothing else. There
+  is no backend, no API key, no account, and nothing to sign in to.
+- **Embeddings are computed on your machine.** The model runs locally on CPU.
+  Your conversations are never sent to an embedding API. The only network
+  request the project ever makes is a one-time ~90 MB model download from
+  Hugging Face, and you can see exactly where it happens
+  (`backend/core/embeddings.py`).
+- **One file you own.** Everything lives in `data/ai_memory.db`. Back it up,
+  move it between machines, inspect it with any SQLite browser, or delete it.
+  No export step, no proprietary format, no lock-in.
+- **No telemetry.** None. Not opt-in, not anonymised, not planned
+  ([see the roadmap](ROADMAP.md#not-planned)).
+
+Cloud sync would make some things easier. It is not worth it for this data.
+
+## Features
+
+| | |
+|---|---|
+| **Content search** | Full-text search across every message body, not just titles. FTS5 with bm25 ranking, Porter stemming, and highlighted snippets. |
+| **Semantic search** | Local embeddings find conversations that share no words with your query. Runs on CPU, degrades to keyword-only if unavailable. |
+| **Hybrid ranking** | Both engines merged with Reciprocal Rank Fusion, deduplicated by conversation, badged `keyword` / `semantic` / `both`. |
+| **Conversation chains** | Related conversations grouped automatically, so a topic you returned to over weeks reads as one thread. |
+| **Safe re-import** | Import the same export twice and nothing duplicates. Matched on id, then on content hash, so even a re-generated export is recognised. |
+| **Desktop app** | Runs in a native window via pywebview, or in your browser with `--no-window`. |
 
 ## Setup
 
@@ -84,6 +172,66 @@ about building muscle and gym routines.
 Semantic search can be switched off in **Settings**, which falls back to
 keyword-only results.
 
+## Architecture
+
+Provider-specific parsing happens once, at the edge. Everything downstream of
+the universal format is provider-agnostic, which is why adding a new assistant
+is one file rather than a refactor.
+
+```mermaid
+flowchart TD
+    subgraph sources [" Data sources "]
+        A1["ChatGPT export"]
+        A2["Claude export<br/><i>planned</i>"]
+        A3["Gemini export<br/><i>planned</i>"]
+    end
+
+    subgraph adapters [" Provider adapters "]
+        B1["chatgpt_importer.py<br/>tree walk · branch selection · text extraction"]
+    end
+
+    subgraph universal [" Universal format · SQLite "]
+        C1[("conversations · messages<br/>providers · chunks")]
+    end
+
+    subgraph engine [" Memory engine "]
+        D1["FTS5 index<br/>trigger-synced"]
+        D2["Vector index<br/>sqlite-vec · 384d"]
+        D3["Chain detection<br/>title similarity"]
+    end
+
+    subgraph retrieval [" Retrieval "]
+        E1["Keyword search<br/>bm25"]
+        E2["Semantic search<br/>local embeddings"]
+        E3["Hybrid ranking<br/>Reciprocal Rank Fusion"]
+    end
+
+    subgraph clients [" Clients "]
+        F1["Web UI<br/>Flask + pywebview"]
+        F2["MCP server<br/><i>planned — v0.3</i>"]
+    end
+
+    A1 --> B1
+    A2 -.-> B1
+    A3 -.-> B1
+    B1 --> C1
+    C1 --> D1
+    C1 --> D2
+    C1 --> D3
+    D1 --> E1
+    D2 --> E2
+    E1 --> E3
+    E2 --> E3
+    D3 --> F1
+    E3 --> F1
+    E3 -.-> F2
+
+    classDef planned stroke-dasharray: 5 5,opacity:0.65
+    class A2,A3,F2 planned
+```
+
+Dashed boxes are on the [roadmap](ROADMAP.md), not built yet.
+
 ## How it works
 
 ```
@@ -101,6 +249,7 @@ ai_memory/
 │   │   ├── templates/    Jinja2 pages
 │   │   └── static/       stylesheet
 │   └── main.py           entry point: Flask thread + pywebview window
+├── tests/                four suites, no test framework required
 ├── data/                 database and saved imports (gitignored)
 └── sample_conversations.json
 ```
@@ -198,6 +347,18 @@ parameter (`detect_chains(conn, threshold=0.7)` tightens it), `STOPWORDS` in
 `backend/core/importer.py` is the other dial, and **Settings → Rebuild
 conversation chains** re-runs detection over the whole library.
 
+## Tests
+
+```bash
+python tests/run_all.py
+```
+
+255 checks across four suites. They run against temporary databases and never
+touch `data/`, so running them cannot harm a real library. The two semantic
+suites skip themselves with a note if sentence-transformers is not installed.
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for what each suite covers.
+
 ## Limitations
 
 - ChatGPT is the only supported provider.
@@ -217,3 +378,17 @@ conversation chains** re-runs detection over the whole library.
   because the search index is rebuilt incrementally as each message lands.
 - The Flask development server is used deliberately: it is bound to
   `127.0.0.1` and only ever serves this one desktop window.
+
+## Contributing
+
+Contributions are welcome — particularly new provider adapters, which the
+architecture is built for. [CONTRIBUTING.md](CONTRIBUTING.md) walks through
+writing one, with a worked example.
+
+- [Roadmap](ROADMAP.md) — what is planned, and what is deliberately not
+- [Report a bug](.github/ISSUE_TEMPLATE/bug_report.md)
+- [Request a feature](.github/ISSUE_TEMPLATE/feature_request.md)
+
+## License
+
+[MIT](LICENSE).
