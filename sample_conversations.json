@@ -1,0 +1,792 @@
+[
+ {
+  "title": "Rust ownership and borrowing",
+  "create_time": 1735689600.0,
+  "update_time": 1735689605.0,
+  "mapping": {
+   "root": {
+    "id": "root",
+    "message": null,
+    "parent": null,
+    "children": [
+     "sys"
+    ]
+   },
+   "sys": {
+    "id": "sys",
+    "message": {
+     "id": "sys",
+     "author": {
+      "role": "system",
+      "name": null,
+      "metadata": {}
+     },
+     "create_time": 1735689600.0,
+     "content": {
+      "content_type": "text",
+      "parts": [
+       ""
+      ]
+     },
+     "status": "finished_successfully",
+     "metadata": {
+      "is_visually_hidden_from_conversation": false
+     }
+    },
+    "parent": "root",
+    "children": [
+     "aaa-111-n0"
+    ]
+   },
+   "aaa-111-n0": {
+    "id": "aaa-111-n0",
+    "message": {
+     "id": "aaa-111-n0",
+     "author": {
+      "role": "user",
+      "name": null,
+      "metadata": {}
+     },
+     "create_time": 1735689601.0,
+     "content": {
+      "content_type": "text",
+      "parts": [
+       "Can you explain ownership in Rust? I keep fighting the borrow checker."
+      ]
+     },
+     "status": "finished_successfully",
+     "metadata": {
+      "is_visually_hidden_from_conversation": false
+     }
+    },
+    "parent": "sys",
+    "children": [
+     "aaa-111-n1"
+    ]
+   },
+   "aaa-111-n1": {
+    "id": "aaa-111-n1",
+    "message": {
+     "id": "aaa-111-n1",
+     "author": {
+      "role": "assistant",
+      "name": null,
+      "metadata": {}
+     },
+     "create_time": 1735689602.0,
+     "content": {
+      "content_type": "text",
+      "parts": [
+       "Ownership means each value has a single owner. When the owner goes out of scope the value is dropped. Borrowing lets you take a reference without transferring ownership."
+      ]
+     },
+     "status": "finished_successfully",
+     "metadata": {
+      "is_visually_hidden_from_conversation": false
+     }
+    },
+    "parent": "aaa-111-n0",
+    "children": [
+     "aaa-111-n2"
+    ]
+   },
+   "aaa-111-n2": {
+    "id": "aaa-111-n2",
+    "message": {
+     "id": "aaa-111-n2",
+     "author": {
+      "role": "user",
+      "name": null,
+      "metadata": {}
+     },
+     "create_time": 1735689603.0,
+     "content": {
+      "content_type": "text",
+      "parts": [
+       "What about lifetimes?"
+      ]
+     },
+     "status": "finished_successfully",
+     "metadata": {
+      "is_visually_hidden_from_conversation": false
+     }
+    },
+    "parent": "aaa-111-n1",
+    "children": [
+     "aaa-111-n3"
+    ]
+   },
+   "aaa-111-n3": {
+    "id": "aaa-111-n3",
+    "message": {
+     "id": "aaa-111-n3",
+     "author": {
+      "role": "assistant",
+      "name": null,
+      "metadata": {}
+     },
+     "create_time": 1735689604.0,
+     "content": {
+      "content_type": "text",
+      "parts": [
+       "Lifetimes are annotations that tell the compiler how long references remain valid. Most of the time elision infers them."
+      ]
+     },
+     "status": "finished_successfully",
+     "metadata": {
+      "is_visually_hidden_from_conversation": false
+     }
+    },
+    "parent": "aaa-111-n2",
+    "children": []
+   }
+  },
+  "current_node": "aaa-111-n3",
+  "id": "aaa-111",
+  "default_model_slug": "gpt-4o"
+ },
+ {
+  "title": "Rust ownership questions",
+  "create_time": 1735776000.0,
+  "update_time": 1735776003.0,
+  "mapping": {
+   "root": {
+    "id": "root",
+    "message": null,
+    "parent": null,
+    "children": [
+     "sys"
+    ]
+   },
+   "sys": {
+    "id": "sys",
+    "message": {
+     "id": "sys",
+     "author": {
+      "role": "system",
+      "name": null,
+      "metadata": {}
+     },
+     "create_time": 1735776000.0,
+     "content": {
+      "content_type": "text",
+      "parts": [
+       ""
+      ]
+     },
+     "status": "finished_successfully",
+     "metadata": {
+      "is_visually_hidden_from_conversation": false
+     }
+    },
+    "parent": "root",
+    "children": [
+     "bbb-222-n0"
+    ]
+   },
+   "bbb-222-n0": {
+    "id": "bbb-222-n0",
+    "message": {
+     "id": "bbb-222-n0",
+     "author": {
+      "role": "user",
+      "name": null,
+      "metadata": {}
+     },
+     "create_time": 1735776001.0,
+     "content": {
+      "content_type": "text",
+      "parts": [
+       "Follow up on ownership: how does move semantics interact with closures?"
+      ]
+     },
+     "status": "finished_successfully",
+     "metadata": {
+      "is_visually_hidden_from_conversation": false
+     }
+    },
+    "parent": "sys",
+    "children": [
+     "bbb-222-n1"
+    ]
+   },
+   "bbb-222-n1": {
+    "id": "bbb-222-n1",
+    "message": {
+     "id": "bbb-222-n1",
+     "author": {
+      "role": "assistant",
+      "name": null,
+      "metadata": {}
+     },
+     "create_time": 1735776002.0,
+     "content": {
+      "content_type": "text",
+      "parts": [
+       "A closure captures by reference, by mutable reference, or by move. The move keyword forces ownership transfer into the closure."
+      ]
+     },
+     "status": "finished_successfully",
+     "metadata": {
+      "is_visually_hidden_from_conversation": false
+     }
+    },
+    "parent": "bbb-222-n0",
+    "children": []
+   }
+  },
+  "current_node": "bbb-222-n1",
+  "id": "bbb-222",
+  "default_model_slug": "gpt-4o"
+ },
+ {
+  "title": "Sourdough starter troubleshooting",
+  "create_time": 1735862400.0,
+  "update_time": 1735862403.0,
+  "mapping": {
+   "root": {
+    "id": "root",
+    "message": null,
+    "parent": null,
+    "children": [
+     "sys"
+    ]
+   },
+   "sys": {
+    "id": "sys",
+    "message": {
+     "id": "sys",
+     "author": {
+      "role": "system",
+      "name": null,
+      "metadata": {}
+     },
+     "create_time": 1735862400.0,
+     "content": {
+      "content_type": "text",
+      "parts": [
+       ""
+      ]
+     },
+     "status": "finished_successfully",
+     "metadata": {
+      "is_visually_hidden_from_conversation": false
+     }
+    },
+    "parent": "root",
+    "children": [
+     "ccc-333-n0"
+    ]
+   },
+   "ccc-333-n0": {
+    "id": "ccc-333-n0",
+    "message": {
+     "id": "ccc-333-n0",
+     "author": {
+      "role": "user",
+      "name": null,
+      "metadata": {}
+     },
+     "create_time": 1735862401.0,
+     "content": {
+      "content_type": "text",
+      "parts": [
+       "My sourdough starter smells like acetone. Is it dead?"
+      ]
+     },
+     "status": "finished_successfully",
+     "metadata": {
+      "is_visually_hidden_from_conversation": false
+     }
+    },
+    "parent": "sys",
+    "children": [
+     "ccc-333-n1"
+    ]
+   },
+   "ccc-333-n1": {
+    "id": "ccc-333-n1",
+    "message": {
+     "id": "ccc-333-n1",
+     "author": {
+      "role": "assistant",
+      "name": null,
+      "metadata": {}
+     },
+     "create_time": 1735862402.0,
+     "content": {
+      "content_type": "text",
+      "parts": [
+       "Not dead, just hungry. Acetone means the yeast has burned through the available flour. Feed it twice a day at 1:5:5 and keep it near 24 degrees celsius."
+      ]
+     },
+     "status": "finished_successfully",
+     "metadata": {
+      "is_visually_hidden_from_conversation": false
+     }
+    },
+    "parent": "ccc-333-n0",
+    "children": []
+   }
+  },
+  "current_node": "ccc-333-n1",
+  "id": "ccc-333",
+  "default_model_slug": "gpt-4o"
+ },
+ {
+  "title": "Sourdough starter feeding schedule",
+  "create_time": 1735948800.0,
+  "update_time": 1735948803.0,
+  "mapping": {
+   "root": {
+    "id": "root",
+    "message": null,
+    "parent": null,
+    "children": [
+     "sys"
+    ]
+   },
+   "sys": {
+    "id": "sys",
+    "message": {
+     "id": "sys",
+     "author": {
+      "role": "system",
+      "name": null,
+      "metadata": {}
+     },
+     "create_time": 1735948800.0,
+     "content": {
+      "content_type": "text",
+      "parts": [
+       ""
+      ]
+     },
+     "status": "finished_successfully",
+     "metadata": {
+      "is_visually_hidden_from_conversation": false
+     }
+    },
+    "parent": "root",
+    "children": [
+     "ddd-444-n0"
+    ]
+   },
+   "ddd-444-n0": {
+    "id": "ddd-444-n0",
+    "message": {
+     "id": "ddd-444-n0",
+     "author": {
+      "role": "user",
+      "name": null,
+      "metadata": {}
+     },
+     "create_time": 1735948801.0,
+     "content": {
+      "content_type": "text",
+      "parts": [
+       "What feeding schedule should I use for my sourdough starter?"
+      ]
+     },
+     "status": "finished_successfully",
+     "metadata": {
+      "is_visually_hidden_from_conversation": false
+     }
+    },
+    "parent": "sys",
+    "children": [
+     "ddd-444-n1"
+    ]
+   },
+   "ddd-444-n1": {
+    "id": "ddd-444-n1",
+    "message": {
+     "id": "ddd-444-n1",
+     "author": {
+      "role": "assistant",
+      "name": null,
+      "metadata": {}
+     },
+     "create_time": 1735948802.0,
+     "content": {
+      "content_type": "text",
+      "parts": [
+       "Twice daily at 1:5:5 works well for a mature starter kept at room temperature. Refrigerate and feed weekly if you bake rarely."
+      ]
+     },
+     "status": "finished_successfully",
+     "metadata": {
+      "is_visually_hidden_from_conversation": false
+     }
+    },
+    "parent": "ddd-444-n0",
+    "children": []
+   }
+  },
+  "current_node": "ddd-444-n1",
+  "id": "ddd-444",
+  "default_model_slug": "gpt-4o"
+ },
+ {
+  "title": "SQLite full text search",
+  "create_time": 1736035200.0,
+  "update_time": 1736035203.0,
+  "mapping": {
+   "root": {
+    "id": "root",
+    "message": null,
+    "parent": null,
+    "children": [
+     "sys"
+    ]
+   },
+   "sys": {
+    "id": "sys",
+    "message": {
+     "id": "sys",
+     "author": {
+      "role": "system",
+      "name": null,
+      "metadata": {}
+     },
+     "create_time": 1736035200.0,
+     "content": {
+      "content_type": "text",
+      "parts": [
+       ""
+      ]
+     },
+     "status": "finished_successfully",
+     "metadata": {
+      "is_visually_hidden_from_conversation": false
+     }
+    },
+    "parent": "root",
+    "children": [
+     "eee-555-n0"
+    ]
+   },
+   "eee-555-n0": {
+    "id": "eee-555-n0",
+    "message": {
+     "id": "eee-555-n0",
+     "author": {
+      "role": "user",
+      "name": null,
+      "metadata": {}
+     },
+     "create_time": 1736035201.0,
+     "content": {
+      "content_type": "text",
+      "parts": [
+       "How do I use FTS5 in SQLite for searching documents?"
+      ]
+     },
+     "status": "finished_successfully",
+     "metadata": {
+      "is_visually_hidden_from_conversation": false
+     }
+    },
+    "parent": "sys",
+    "children": [
+     "eee-555-n1"
+    ]
+   },
+   "eee-555-n1": {
+    "id": "eee-555-n1",
+    "message": {
+     "id": "eee-555-n1",
+     "author": {
+      "role": "assistant",
+      "name": null,
+      "metadata": {}
+     },
+     "create_time": 1736035202.0,
+     "content": {
+      "content_type": "text",
+      "parts": [
+       "Create a virtual table with USING fts5(...), then query it with the MATCH operator. bm25() ranks results and snippet() extracts highlighted excerpts around the match."
+      ]
+     },
+     "status": "finished_successfully",
+     "metadata": {
+      "is_visually_hidden_from_conversation": false
+     }
+    },
+    "parent": "eee-555-n0",
+    "children": []
+   }
+  },
+  "current_node": "eee-555-n1",
+  "id": "eee-555",
+  "default_model_slug": "gpt-4o"
+ },
+ {
+  "title": "Deploying Flask on a Raspberry Pi",
+  "create_time": 1736121600.0,
+  "update_time": 1736121602.0,
+  "mapping": {
+   "root": {
+    "id": "root",
+    "message": null,
+    "parent": null,
+    "children": [
+     "sys"
+    ]
+   },
+   "sys": {
+    "id": "sys",
+    "message": {
+     "id": "sys",
+     "author": {
+      "role": "system",
+      "name": null,
+      "metadata": {}
+     },
+     "create_time": 1736121600.0,
+     "content": {
+      "content_type": "text",
+      "parts": [
+       ""
+      ]
+     },
+     "status": "finished_successfully",
+     "metadata": {
+      "is_visually_hidden_from_conversation": false
+     }
+    },
+    "parent": "root",
+    "children": [
+     "fff-666-n0"
+    ]
+   },
+   "fff-666-n0": {
+    "id": "fff-666-n0",
+    "message": {
+     "id": "fff-666-n0",
+     "author": {
+      "role": "user",
+      "name": null,
+      "metadata": {}
+     },
+     "create_time": 1736121601.0,
+     "content": {
+      "content_type": "text",
+      "parts": [
+       "How do I run a Flask app on a Raspberry Pi at boot?"
+      ]
+     },
+     "status": "finished_successfully",
+     "metadata": {
+      "is_visually_hidden_from_conversation": false
+     }
+    },
+    "parent": "sys",
+    "children": [
+     "good",
+     "abandoned"
+    ]
+   },
+   "good": {
+    "id": "good",
+    "message": {
+     "id": "good",
+     "author": {
+      "role": "assistant",
+      "name": null,
+      "metadata": {}
+     },
+     "create_time": 1736121602.0,
+     "content": {
+      "content_type": "text",
+      "parts": [
+       "Use a systemd unit file with Restart=always and WantedBy=multi-user.target."
+      ]
+     },
+     "status": "finished_successfully",
+     "metadata": {
+      "is_visually_hidden_from_conversation": false
+     }
+    },
+    "parent": "fff-666-n0",
+    "children": []
+   },
+   "abandoned": {
+    "id": "abandoned",
+    "message": {
+     "id": "abandoned",
+     "author": {
+      "role": "assistant",
+      "name": null,
+      "metadata": {}
+     },
+     "create_time": 1736121603.0,
+     "content": {
+      "content_type": "text",
+      "parts": [
+       "DISCARDED REGENERATION cron reboot"
+      ]
+     },
+     "status": "finished_successfully",
+     "metadata": {
+      "is_visually_hidden_from_conversation": false
+     }
+    },
+    "parent": "fff-666-n0",
+    "children": []
+   }
+  },
+  "current_node": "good",
+  "id": "fff-666",
+  "default_model_slug": "gpt-4o"
+ },
+ {
+  "title": "Reading a chart image",
+  "create_time": 1736208000.0,
+  "update_time": 1736208002.0,
+  "mapping": {
+   "root": {
+    "id": "root",
+    "message": null,
+    "parent": null,
+    "children": [
+     "sys"
+    ]
+   },
+   "sys": {
+    "id": "sys",
+    "message": {
+     "id": "sys",
+     "author": {
+      "role": "system",
+      "name": null,
+      "metadata": {}
+     },
+     "create_time": 1736208000.0,
+     "content": {
+      "content_type": "text",
+      "parts": [
+       ""
+      ]
+     },
+     "status": "finished_successfully",
+     "metadata": {
+      "is_visually_hidden_from_conversation": false
+     }
+    },
+    "parent": "root",
+    "children": [
+     "ggg-777-n0"
+    ]
+   },
+   "ggg-777-n0": {
+    "id": "ggg-777-n0",
+    "message": {
+     "id": "ggg-777-n0",
+     "author": {
+      "role": "user",
+      "name": null,
+      "metadata": {}
+     },
+     "create_time": 1736208001.0,
+     "content": {
+      "content_type": "multimodal_text",
+      "parts": [
+       {
+        "content_type": "image_asset_pointer",
+        "asset_pointer": "file-abc"
+       },
+       "What does this chart show?"
+      ]
+     },
+     "status": "finished_successfully",
+     "metadata": {
+      "is_visually_hidden_from_conversation": false
+     }
+    },
+    "parent": "sys",
+    "children": [
+     "hid",
+     "ans"
+    ]
+   },
+   "hid": {
+    "id": "hid",
+    "message": {
+     "id": "hid",
+     "author": {
+      "role": "assistant",
+      "name": null,
+      "metadata": {}
+     },
+     "create_time": 1736208002.0,
+     "content": {
+      "content_type": "text",
+      "parts": [
+       "HIDDEN SCAFFOLD TEXT"
+      ]
+     },
+     "status": "finished_successfully",
+     "metadata": {
+      "is_visually_hidden_from_conversation": true
+     }
+    },
+    "parent": "ggg-777-n0",
+    "children": [
+     "ans"
+    ]
+   },
+   "ans": {
+    "id": "ans",
+    "message": {
+     "id": "ans",
+     "author": {
+      "role": "assistant",
+      "name": null,
+      "metadata": {}
+     },
+     "create_time": 1736208003.0,
+     "content": {
+      "content_type": "text",
+      "parts": [
+       "It plots quarterly revenue against headcount."
+      ]
+     },
+     "status": "finished_successfully",
+     "metadata": {
+      "is_visually_hidden_from_conversation": false
+     }
+    },
+    "parent": "hid",
+    "children": []
+   }
+  },
+  "current_node": "ans",
+  "id": "ggg-777",
+  "default_model_slug": "gpt-4o"
+ },
+ {
+  "id": "hhh-888",
+  "title": "Empty one",
+  "create_time": 1735689600.0,
+  "update_time": 1735689600.0,
+  "mapping": {},
+  "current_node": null
+ },
+ {
+  "id": "iii-999",
+  "title": "Vim keybindings cheatsheet",
+  "create_time": 1736294400.0,
+  "update_time": 1736294400.0,
+  "messages": [
+   {
+    "role": "user",
+    "content": "Give me the essential vim motions."
+   },
+   {
+    "role": "assistant",
+    "content": "hjkl to move, w and b by word, gg and G for the top and bottom of the buffer, ciw to change a word."
+   }
+  ]
+ }
+]

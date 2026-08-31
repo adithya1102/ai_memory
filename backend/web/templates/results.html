@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}{{ query }} — AI Memory{% endblock %}
+
+{% block content %}
+  <form class="searchbar" action="{{ url_for('search') }}" method="get">
+    <input type="search" name="q" value="{{ query }}" autofocus>
+    <button type="submit">Search</button>
+  </form>
+
+  <h2>{{ results|length }} result{{ '' if results|length == 1 else 's' }} for “{{ query }}”</h2>
+
+  {% for r in results %}
+    <a class="card" href="{{ url_for('conversation', conversation_id=r.conversation_id, q=query) }}">
+      <div class="title">{{ r.title or 'Untitled conversation' }}</div>
+      <div class="meta">
+        {{ r.provider_name }}<span class="dot">·</span>
+        {{ r.created_at | datefmt }}<span class="dot">·</span>
+        {{ r.message_count }} messages<span class="dot">·</span>
+        score {{ r.match_score }}
+      </div>
+      <p class="snippet">{{ r.snippet_html | safe }}</p>
+    </a>
+  {% else %}
+    <div class="empty">
+      <p>Nothing matched “{{ query }}”.</p>
+      <p class="hint">Search covers conversation titles and every message body.</p>
+    </div>
+  {% endfor %}
+{% endblock %}

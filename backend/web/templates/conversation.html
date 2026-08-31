@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}{{ conversation.title }} — AI Memory{% endblock %}
+
+{% block content %}
+  {% if query %}
+    <p class="meta"><a href="{{ url_for('search', q=query) }}">← Back to results for “{{ query }}”</a></p>
+  {% endif %}
+
+  <h1>{{ conversation.title or 'Untitled conversation' }}</h1>
+  <p class="meta">
+    {{ conversation.provider_name }}<span class="dot">·</span>
+    {{ conversation.created_at | datefmt('%d %b %Y, %H:%M') }}<span class="dot">·</span>
+    {{ messages|length }} message{{ '' if messages|length == 1 else 's' }}
+  </p>
+
+  {% if chains %}
+    <p class="meta">
+      Part of:
+      {% for ch in chains %}
+        <a class="pill" href="{{ url_for('chain', chain_id=ch.id) }}">{{ ch.name }}</a>
+      {% endfor %}
+    </p>
+  {% endif %}
+
+  <h2>Transcript</h2>
+  {% for m in messages %}
+    <div class="msg {{ m.role }}">
+      <div class="role">{{ m.role }}</div>
+      <div class="body">{{ m.content }}</div>
+    </div>
+  {% else %}
+    <div class="empty">This conversation has no messages.</div>
+  {% endfor %}
+{% endblock %}

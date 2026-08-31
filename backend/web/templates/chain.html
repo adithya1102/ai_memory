@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}{% if chain %}{{ chain.name }}{% else %}Chains{% endif %} — AI Memory{% endblock %}
+
+{% block content %}
+{% if chain %}
+  <p class="meta"><a href="{{ url_for('chains') }}">← All chains</a></p>
+  <h1>{{ chain.name }}</h1>
+  <p class="meta">{{ chain.conversations|length }} conversations, oldest first</p>
+
+  {% for c in chain.conversations %}
+    <a class="card" href="{{ url_for('conversation', conversation_id=c.id) }}">
+      <div class="title">{{ loop.index }}. {{ c.title or 'Untitled conversation' }}</div>
+      <div class="meta">{{ c.provider_name }}<span class="dot">·</span>{{ c.created_at | datefmt }}</div>
+    </a>
+  {% endfor %}
+
+{% else %}
+  <h1>Conversation chains</h1>
+  <p class="meta">Conversations grouped by overlapping title keywords.</p>
+
+  {% for ch in chains %}
+    <a class="card" href="{{ url_for('chain', chain_id=ch.id) }}">
+      <div class="title">{{ ch.name }}</div>
+      <div class="meta">{{ ch.size }} conversations</div>
+    </a>
+  {% else %}
+    <div class="empty">
+      <p>No chains detected yet.</p>
+      <p class="hint">Chains appear when two or more conversations share more than
+        half of the significant words in their titles.</p>
+    </div>
+  {% endfor %}
+{% endif %}
+{% endblock %}

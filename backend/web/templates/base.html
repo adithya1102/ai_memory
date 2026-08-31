@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}AI Memory{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <header>
+    <div class="wrap">
+      <a class="brand" href="{{ url_for('index') }}">AI <span>Memory</span></a>
+      <nav>
+        <a href="{{ url_for('index') }}" {% if request.endpoint == 'index' %}class="active"{% endif %}>Home</a>
+        <a href="{{ url_for('chains') }}" {% if request.endpoint in ('chains', 'chain') %}class="active"{% endif %}>Chains</a>
+        <a href="{{ url_for('import_export') }}" {% if request.endpoint == 'import_export' %}class="active"{% endif %}>Import</a>
+        <a href="{{ url_for('settings') }}" {% if request.endpoint == 'settings' %}class="active"{% endif %}>Settings</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for category, message in messages %}
+        <div class="flash {{ category }}">{{ message }}</div>
+      {% endfor %}
+    {% endwith %}
+
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>

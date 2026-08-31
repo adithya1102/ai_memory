@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Settings — AI Memory{% endblock %}
+
+{% block content %}
+  <h1>Settings</h1>
+  <p class="meta">Everything is stored locally on this machine. Nothing is uploaded anywhere.</p>
+
+  <h2>Storage</h2>
+  <table>
+    <tr><th>Database</th><td class="value"><code>{{ db_path }}</code></td></tr>
+    <tr><th>Database size</th><td class="value">{{ db_size }}</td></tr>
+    <tr><th>Imported files</th><td class="value"><code>{{ imports_dir }}</code></td></tr>
+  </table>
+
+  <h2>Library</h2>
+  <table>
+    <tr><th>Conversations</th><td class="value">{{ stats.conversations }}</td></tr>
+    <tr><th>Messages</th><td class="value">{{ stats.messages }}</td></tr>
+    <tr><th>Chains</th><td class="value">{{ stats.chains }}</td></tr>
+    <tr><th>Last import</th><td class="value">{{ stats.last_import | datefmt('%d %b %Y, %H:%M') }}</td></tr>
+  </table>
+
+  <h2>Providers connected</h2>
+  <table>
+    <tr><th>Provider</th><th class="value">Conversations</th></tr>
+    {% for p in stats.providers %}
+      <tr><td>{{ p.display_name }}</td><td class="value">{{ p.conversation_count }}</td></tr>
+    {% else %}
+      <tr><td colspan="2">No providers yet — <a href="{{ url_for('import_export') }}">import an export</a>.</td></tr>
+    {% endfor %}
+  </table>
+
+  <h2>Maintenance</h2>
+  <form method="post" action="{{ url_for('rebuild_chains') }}">
+    <button class="secondary" type="submit">Rebuild conversation chains</button>
+    <p class="hint">Re-runs title-similarity detection over the whole library.</p>
+  </form>
+{% endblock %}

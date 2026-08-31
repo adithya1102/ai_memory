@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <form class="searchbar hero" action="{{ url_for('search') }}" method="get">
+    <input type="search" name="q" placeholder="Search everything you've asked an AI…" autofocus>
+    <button type="submit">Search</button>
+  </form>
+
+  {% if stats.conversations %}
+    <h2>Recent conversations</h2>
+    {% for c in recent %}
+      <a class="card" href="{{ url_for('conversation', conversation_id=c.id) }}">
+        <div class="title">{{ c.title or 'Untitled conversation' }}</div>
+        <div class="meta">
+          {{ c.provider_name }}<span class="dot">·</span>
+          {{ (c.updated_at or c.created_at) | datefmt }}<span class="dot">·</span>
+          {{ c.message_count }} message{{ '' if c.message_count == 1 else 's' }}
+        </div>
+      </a>
+    {% endfor %}
+
+    {% if chains %}
+      <h2>Conversation chains</h2>
+      {% for ch in chains %}
+        <a class="card" href="{{ url_for('chain', chain_id=ch.id) }}">
+          <div class="title">{{ ch.name }}</div>
+          <div class="meta">{{ ch.size }} related conversations</div>
+        </a>
+      {% endfor %}
+    {% endif %}
+  {% else %}
+    <div class="empty">
+      <p>No conversations yet.</p>
+      <p><a href="{{ url_for('import_export') }}">Import a ChatGPT export</a> to get started.</p>
+    </div>
+  {% endif %}
+{% endblock %}

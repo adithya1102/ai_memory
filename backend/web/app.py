@@ -1,0 +1,182 @@
+"""Flask application for the AI Memory desktop UI."""
+
+import os
+import re
+import sys
+from datetime import datetime
+
+# Allow `python backend/web/app.py` as well as `python backend/main.py`.
+PROJECT_ROOT = os.path.dirname(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+)
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
+
+from flask import (Flask, abort, flash, g, redirect, render_template, request,
+                   url_for)
+from werkzeug.utils import secure_filename
+
+from backend.core import database as db
+from backend.core.importer import detect_chains, import_file
+from backend.core.search import search_conversations
+
+
+def create_app(db_path=db.DB_PATH, imports_dir=db.IMPORTS_DIR):
+    app = Flask(__name__)
+    app.config["DB_PATH"] = db_path
+    app.config["IMPORTS_DIR"] = imports_dir
+    app.config["MAX_CONTENT_LENGTH"] = 1024 * 1024 * 1024  # exports get big
+    app.secret_key = os.urandom(24)  # local app: flash messages only
+
+    # ------------------------------------------------------------------
+    # Per-request database connection
+    # ------------------------------------------------------------------
+    def connection():
+        if "db" not in g:
+            g.db = db.get_connection(app.config["DB_PATH"])
+        return g.db
+
+    @app.teardown_appcontext
+    def close_connection(_exception):
+        conn = g.pop("db", None)
+        if conn is not None:
+            conn.close()
+
+    # ------------------------------------------------------------------
+    # Template helpers
+    # ------------------------------------------------------------------
+    @app.template_filter("datefmt")
+    def datefmt(value, fmt="%d %b %Y"):
+        if not value:
+            return "—"
+        try:
+            return datetime.fromisoformat(str(value)).strftime(fmt)
+        except ValueError:
+            return str(value)[:10]
+
+    @app.template_filter("preview")
+    def preview(value, length=220):
+        text = re.sub(r"\s+", " ", value or "").strip()
+        return text if len(text) <= length else text[:length].rstrip() + "…"
+
+    # ------------------------------------------------------------------
+    # Routes
+    # ------------------------------------------------------------------
+    @app.route("/")
+    def index():
+        conn = connection()
+        return render_template(
+            "index.html",
+            recent=db.get_recent_conversations(conn, limit=10),
+            chains=db.get_chains(conn)[:5],
+            stats=db.get_stats(conn),
+        )
+
+    @app.route("/search")
+    def search():
+        query = (request.args.get("q") or "").strip()
+        if not query:
+            return redirect(url_for("index"))
+        results = search_conversations(connection(), query, limit=50)
+        return render_template("results.html", query=query, results=results)
+
+    @app.route("/conversation/<path:conversation_id>")
+    def conversation(conversation_id):
+        conn = connection()
+        record = db.get_conversation(conn, conversation_id)
+        if record is None:
+            abort(404)
+        return render_template(
+            "conversation.html",
+            conversation=record,
+            messages=db.get_messages(conn, conversation_id),
+            chains=db.get_chains_for_conversation(conn, conversation_id),
+            query=(request.args.get("q") or "").strip(),
+        )
+
+    @app.route("/chains")
+    def chains():
+        return render_template("chain.html", chain=None,
+                               chains=db.get_chains(connection()))
+
+    @app.route("/chain/<int:chain_id>")
+    def chain(chain_id):
+        record = db.get_chain(connection(), chain_id)
+        if record is None:
+            abort(404)
+        return render_template("chain.html", chain=record, chains=None)
+
+    @app.route("/settings")
+    def settings():
+        conn = connection()
+        return render_template(
+            "settings.html",
+            stats=db.get_stats(conn),
+            db_path=os.path.abspath(app.config["DB_PATH"]),
+            imports_dir=os.path.abspath(app.config["IMPORTS_DIR"]),
+            db_size=_file_size(app.config["DB_PATH"]),
+        )
+
+    @app.route("/import", methods=["GET", "POST"])
+    def import_export():
+        if request.method == "GET":
+            return render_template("import.html")
+
+        source_path = None
+        upload = request.files.get("file")
+        local_path = (request.form.get("path") or "").strip().strip('"')
+
+        if upload and upload.filename:
+            os.makedirs(app.config["IMPORTS_DIR"], exist_ok=True)
+            stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+            filename = secure_filename(upload.filename) or "conversations.json"
+            source_path = os.path.join(app.config["IMPORTS_DIR"],
+                                       "%s_%s" % (stamp, filename))
+            upload.save(source_path)
+        elif local_path:
+            if not os.path.isfile(local_path):
+                flash("No file found at %s" % local_path, "error")
+                return redirect(url_for("import_export"))
+            source_path = local_path
+        else:
+            flash("Choose a conversations.json file to import.", "error")
+            return redirect(url_for("import_export"))
+
+        try:
+            stats = import_file(connection(), source_path, provider="chatgpt")
+        except Exception as exc:  # noqa: BLE001 - surfaced to the user
+            flash("Import failed: %s" % exc, "error")
+            return redirect(url_for("import_export"))
+
+        flash(
+            "Imported %d new, %d updated, %d unchanged (%d messages, "
+            "%d skipped) — %d chains detected."
+            % (stats["inserted"], stats["updated"], stats["unchanged"],
+               stats["messages"], stats["skipped"], stats["chains"]),
+            "success",
+        )
+        return redirect(url_for("index"))
+
+    @app.route("/rebuild-chains", methods=["POST"])
+    def rebuild_chains():
+        count = detect_chains(connection())
+        flash("Rebuilt chains: %d found." % count, "success")
+        return redirect(url_for("settings"))
+
+    return app
+
+
+def _file_size(path):
+    try:
+        size = os.path.getsize(path)
+    except OSError:
+        return "—"
+    for unit in ("B", "KB", "MB", "GB"):
+        if size < 1024 or unit == "GB":
+            return "%.1f %s" % (size, unit)
+        size /= 1024.0
+
+
+if __name__ == "__main__":
+    db.init_db(db.DB_PATH).close()
+    create_app().run(host="127.0.0.1", port=5000, debug=True, threaded=True)

@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Import — AI Memory{% endblock %}
+
+{% block content %}
+  <h1>Import a ChatGPT export</h1>
+  <p class="meta">
+    In ChatGPT: <strong>Settings → Data controls → Export data</strong>. You get a
+    zip by email; unzip it and pick the <code>conversations.json</code> inside.
+  </p>
+
+  <form method="post" enctype="multipart/form-data">
+    <h2>Upload the file</h2>
+    <input type="file" name="file" accept=".json,application/json">
+
+    <h2>…or point at it on disk</h2>
+    <input type="text" name="path" placeholder="C:\Users\you\Downloads\export\conversations.json">
+    <p class="hint">Handy for very large exports — the file is read in place instead of copied.</p>
+
+    <p><button type="submit">Import</button></p>
+  </form>
+
+  <p class="hint">
+    Re-importing is safe: conversations are matched on their ChatGPT id, and
+    unchanged ones are left alone.
+  </p>
+{% endblock %}
