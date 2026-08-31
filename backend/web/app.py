@@ -20,6 +20,12 @@ from backend.core import database as db
 from backend.core import embeddings
 from backend.core.importer import detect_chains, import_file
 from backend.core.search import SEMANTIC_ENABLED_KEY, hybrid_search
+from backend.mcp import tools as mcp_tools
+
+# Off by default: the TCP transport listens on a socket that serves the whole
+# conversation archive, so turning it on is the user's decision to make.
+MCP_ENABLED_KEY = "mcp_server_enabled"
+MCP_PORT_KEY = "mcp_server_port"
 
 
 def create_app(db_path=db.DB_PATH, imports_dir=db.IMPORTS_DIR):
@@ -136,7 +142,18 @@ def create_app(db_path=db.DB_PATH, imports_dir=db.IMPORTS_DIR):
             db_size=_file_size(app.config["DB_PATH"]),
             semantic_on=db.get_flag(conn, SEMANTIC_ENABLED_KEY, default=True),
             embedding=embeddings.embedding_stats(conn),
+            mcp=_mcp_status(conn),
         )
+
+    def _mcp_status(conn):
+        from backend.mcp import server as mcp_server
+
+        status = mcp_server.BACKGROUND.status()
+        status["enabled"] = db.get_flag(conn, MCP_ENABLED_KEY, default=False)
+        status["launcher"] = os.path.join(PROJECT_ROOT, "mcp_server.py")
+        status["python"] = sys.executable
+        status["tools"] = [t["name"] for t in mcp_tools.TOOL_SCHEMAS]
+        return status
 
     @app.route("/settings/semantic", methods=["POST"])
     def toggle_semantic():
@@ -145,6 +162,32 @@ def create_app(db_path=db.DB_PATH, imports_dir=db.IMPORTS_DIR):
         db.set_flag(conn, SEMANTIC_ENABLED_KEY, enabled)
         flash("Semantic search %s." % ("enabled" if enabled else "disabled"),
               "success")
+        return redirect(url_for("settings"))
+
+    @app.route("/settings/mcp", methods=["POST"])
+    def toggle_mcp():
+        from backend.mcp import server as mcp_server
+
+        conn = connection()
+        enabled = request.form.get("enabled") == "1"
+        db.set_flag(conn, MCP_ENABLED_KEY, enabled)
+        try:
+            if enabled:
+                port = mcp_server.find_free_port(
+                    int(db.get_setting(conn, MCP_PORT_KEY,
+                                       mcp_server.DEFAULT_TCP_PORT)))
+                status = mcp_server.BACKGROUND.start(
+                    app.config["DB_PATH"], port=port)
+                db.set_setting(conn, MCP_PORT_KEY, status["port"])
+                flash("MCP server listening on 127.0.0.1:%d. Claude Desktop "
+                      "uses the stdio launcher instead — see Settings below."
+                      % status["port"], "success")
+            else:
+                mcp_server.BACKGROUND.stop()
+                flash("MCP server stopped.", "success")
+        except Exception as exc:  # noqa: BLE001 - surfaced to the user
+            db.set_flag(conn, MCP_ENABLED_KEY, False)
+            flash("Could not start the MCP server: %s" % exc, "error")
         return redirect(url_for("settings"))
 
     @app.route("/embeddings/rebuild", methods=["POST"])

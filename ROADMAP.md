@@ -33,22 +33,25 @@ Finding a conversation when you cannot remember a single word you used.
 
 ---
 
-## v0.3 — MCP server
+## v0.3 — MCP server ✅ shipped
 
 Let an AI agent read your memory, so you stop being the one who has to
 remember which session a thing was in.
 
-- Expose search over MCP so Claude and other clients can query the library
-- Read-only tools first: `search_conversations`, `get_conversation`,
-  `list_chains`
-- Scoped access — an agent should not get the whole archive by default
-- Decide the consent model before writing any of it: which conversations are
-  exposed, and how a user revokes that
+- Search exposed over MCP, so Claude Desktop and other clients can query the
+  library
+- Three read-only tools: `search_memory`, `get_conversation`,
+  `get_conversation_chain`
+- stdio transport for clients that spawn a subprocess, plus an optional
+  loopback TCP transport behind a Settings toggle
+- Works with or without the official `mcp` SDK installed
 
-The interesting problem here is not the protocol, it is what a good result
-looks like when the consumer is a model rather than a person. Returning ten
-snippets is probably wrong; returning one well-chosen conversation with its
-chain is probably closer.
+**Still open.** Access is currently all-or-nothing: a connected client can
+search the whole archive. Scoping — exposing only some conversations, and
+letting a user revoke that — is not built, and is the next thing to do here.
+Also unresolved: what a good result looks like when the consumer is a model
+rather than a person. Ten snippets is probably wrong; one well-chosen
+conversation with its chain is probably closer.
 
 ## v0.4 — Additional providers
 

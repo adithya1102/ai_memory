@@ -33,6 +33,9 @@ backend/
 │   ├── embeddings.py   Chunking, the encoder, vector storage and KNN.
 │   ├── importer.py     Import orchestration + chain detection.
 │   └── search.py       Query building, ranking, keyword/semantic fusion.
+├── mcp/
+│   ├── server.py       MCP transports. Protocol only, no tool logic.
+│   └── tools.py        The three MCP tools. Calls into core/, never duplicates it.
 ├── providers/
 │   └── chatgpt_importer.py    One file per provider. Parsing lives here.
 ├── web/
@@ -41,7 +44,7 @@ backend/
 │   └── static/         One stylesheet. No framework.
 └── main.py             Entry point: Flask thread + pywebview window.
 
-tests/                  Four suites, plain scripts, no framework.
+tests/                  Five suites, plain scripts, no framework.
 ```
 
 The rule that keeps this navigable: **`providers/` is the only place that
@@ -215,7 +218,7 @@ python tests/run_all.py           # everything
 python tests/test_core.py         # one suite
 ```
 
-255 checks across four suites. All of them use temporary databases and never
+332 checks across five suites. All of them use temporary databases and never
 touch `data/`, so you cannot lose a real library by running them.
 
 | Suite | Covers |
@@ -224,6 +227,7 @@ touch `data/`, so you cannot lose a real library by running them.
 | `test_dedup_and_chains.py` | Re-import deduplication, chain detection, stopwords, UI |
 | `test_semantic.py` | Chunking, embedding, incremental re-embedding, hybrid ranking |
 | `test_preload.py` | Background model loading, the loading banner, fallback |
+| `test_mcp.py` | MCP tools, the stdio JSON-RPC protocol, TCP transport, degradation |
 
 The semantic suites skip themselves with a note when sentence-transformers is
 not installed, so a keyword-only checkout still runs a clean suite.

@@ -13,6 +13,7 @@ matching.
 import importlib.util
 import os
 import threading
+import time
 
 MODEL_NAME = "all-MiniLM-L6-v2"
 EMBEDDING_DIM = 384
@@ -185,6 +186,31 @@ def get_model_if_ready():
     """
     with _state_lock:
         return _model if _model_state == "ready" else None
+
+
+def wait_until_ready(timeout=60.0):
+    """Block until the encoder is loaded.  Returns True if it is usable.
+
+    The web UI never waits -- it shows keyword results and retries.  A
+    non-interactive caller like the MCP server has no one to show a banner to,
+    and silently returning keyword-only results would look like the semantic
+    index was simply empty, so it waits instead.
+    """
+    ok, _reason = availability()
+    if not ok:
+        return False
+    if get_model_if_ready() is not None:
+        return True
+    start_preload()
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        state = model_state()
+        if state["ready"]:
+            return True
+        if state["state"] in ("failed", "unavailable"):
+            return False
+        time.sleep(0.1)
+    return False
 
 
 def start_preload():

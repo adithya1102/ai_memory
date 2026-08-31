@@ -76,6 +76,30 @@ def preload_model(db_path):
         return None  # never let preloading stop the app from starting
 
 
+def start_mcp_if_enabled(db_path):
+    """Restart the MCP TCP transport if the user left the toggle on.
+
+    Only the socket transport: Claude Desktop spawns its own stdio copy and
+    needs nothing running here.
+    """
+    from backend.mcp import server as mcp_server
+    from backend.web.app import MCP_ENABLED_KEY, MCP_PORT_KEY
+
+    try:
+        conn = db.get_connection(db_path)
+        try:
+            if not db.get_flag(conn, MCP_ENABLED_KEY, default=False):
+                return None
+            port = int(db.get_setting(conn, MCP_PORT_KEY,
+                                      mcp_server.DEFAULT_TCP_PORT))
+        finally:
+            conn.close()
+        return mcp_server.BACKGROUND.start(db_path,
+                                           port=mcp_server.find_free_port(port))
+    except Exception:
+        return None  # never let this stop the app from starting
+
+
 def main():
     parser = argparse.ArgumentParser(description="AI Memory")
     parser.add_argument("--no-window", action="store_true",
@@ -89,6 +113,7 @@ def main():
     db.init_db(args.db).close()
 
     preload_model(args.db)
+    start_mcp_if_enabled(args.db)
     app = create_app(db_path=args.db)
     port = free_port(args.port)
     url = "http://%s:%d" % (HOST, port)

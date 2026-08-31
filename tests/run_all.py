@@ -22,6 +22,7 @@ SUITES = [
     ("test_dedup_and_chains.py", "deduplication and chain detection", False),
     ("test_semantic.py", "chunking, embeddings, hybrid ranking", True),
     ("test_preload.py", "background model loading and fallback", True),
+    ("test_mcp.py", "MCP tools, stdio protocol, TCP transport", True),
 ]
 
 NOISE = re.compile(r"it/s\]|HF Hub|Loading weights|^\[transformers\]")

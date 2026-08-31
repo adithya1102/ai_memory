@@ -4,3 +4,7 @@ pywebview
 # Semantic search (optional — keyword search works without these).
 sentence-transformers
 sqlite-vec
+
+# MCP server (optional — a built-in JSON-RPC implementation is used
+# when this is absent, so Claude Desktop works either way).
+mcp

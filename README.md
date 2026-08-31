@@ -2,7 +2,7 @@
 
 ![Python](https://img.shields.io/badge/python-3.10%2B-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
-![Tests](https://img.shields.io/badge/tests-255%20passing-brightgreen)
+![Tests](https://img.shields.io/badge/tests-332%20passing-brightgreen)
 ![Local first](https://img.shields.io/badge/data-100%25%20local-informational)
 
 **A local-first memory layer for your AI conversations. Search everything you
@@ -172,6 +172,92 @@ about building muscle and gym routines.
 Semantic search can be switched off in **Settings**, which falls back to
 keyword-only results.
 
+## Connecting Claude Desktop (MCP)
+
+AI Memory ships an [MCP](https://modelcontextprotocol.io) server, so an
+assistant can search your archive for you — *"didn't we work out a deployment
+strategy a few months ago?"* — instead of you scrolling for it.
+
+It exposes three read-only tools:
+
+| Tool | Does |
+|---|---|
+| `search_memory(query, limit=10)` | Hybrid keyword + semantic search. Returns conversations with snippets and ids. |
+| `get_conversation(conversation_id)` | One conversation in full, messages in order. |
+| `get_conversation_chain(chain_id)` | Every conversation in a chain, oldest first. |
+
+Nothing writes. There is no tool that can modify or delete your library.
+
+### Configuration
+
+The server file is **`mcp_server.py` in the repository root**. Add this to
+Claude Desktop's config, using absolute paths:
+
+```json
+{
+  "mcpServers": {
+    "ai-memory": {
+      "command": "python",
+      "args": ["C:\\path\\to\\ai_memory\\mcp_server.py"]
+    }
+  }
+}
+```
+
+On macOS or Linux the paths are ordinary POSIX ones:
+
+```json
+{
+  "mcpServers": {
+    "ai-memory": {
+      "command": "python3",
+      "args": ["/Users/you/ai_memory/mcp_server.py"]
+    }
+  }
+}
+```
+
+The config file lives at:
+
+| Platform | Path |
+|---|---|
+| macOS | `~/Library/Application Support/Claude/claude_desktop_config.json` |
+| Windows | `%APPDATA%\Claude\claude_desktop_config.json` |
+| Linux | `~/.config/Claude/claude_desktop_config.json` |
+
+Restart Claude Desktop afterwards. **Settings → MCP server** in AI Memory
+prints this same JSON with your actual paths already filled in — copy it from
+there rather than editing the example.
+
+Cursor and other MCP clients take the same `command` / `args` pair in their
+own config format.
+
+### Checking it works
+
+You do not need Claude Desktop to test it. The server speaks
+newline-delimited JSON-RPC on stdin:
+
+```bash
+echo '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | python mcp_server.py
+```
+
+Useful flags: `--db PATH` to point at another library, `--no-sdk` to force the
+built-in protocol loop, `--transport tcp --port 8765` to listen on a socket
+instead of stdio.
+
+### Two transports, and which one you want
+
+- **stdio** is the one Claude Desktop uses. The client launches
+  `mcp_server.py` as a subprocess itself, so **nothing needs to be running in
+  AI Memory** for it to work — not even the desktop app.
+- **TCP** is what the *Start MCP server* toggle in Settings starts: the same
+  server on `127.0.0.1`, for clients that connect to a socket and for poking
+  at it by hand. It is off by default and never binds anything but loopback.
+
+If the official `mcp` SDK is installed it is used for stdio; otherwise a
+built-in JSON-RPC loop speaks the same protocol, so a fresh clone works with
+no extra install.
+
 ## Architecture
 
 Provider-specific parsing happens once, at the edge. Everything downstream of
@@ -208,7 +294,7 @@ flowchart TD
 
     subgraph clients [" Clients "]
         F1["Web UI<br/>Flask + pywebview"]
-        F2["MCP server<br/><i>planned — v0.3</i>"]
+        F2["MCP server<br/>3 read-only tools"]
     end
 
     A1 --> B1
@@ -224,10 +310,10 @@ flowchart TD
     E2 --> E3
     D3 --> F1
     E3 --> F1
-    E3 -.-> F2
+    E3 --> F2
 
     classDef planned stroke-dasharray: 5 5,opacity:0.65
-    class A2,A3,F2 planned
+    class A2,A3 planned
 ```
 
 Dashed boxes are on the [roadmap](ROADMAP.md), not built yet.
@@ -242,6 +328,9 @@ ai_memory/
 │   │   ├── embeddings.py chunking, local embeddings, vector search
 │   │   ├── importer.py   import orchestration, chain detection
 │   │   └── search.py     FTS5 queries, semantic/keyword fusion
+│   ├── mcp/
+│   │   ├── server.py     MCP transports: stdio, TCP, optional SDK
+│   │   └── tools.py      the three tools, transport-free
 │   ├── providers/
 │   │   └── chatgpt_importer.py   parses ChatGPT's export format
 │   ├── web/
@@ -249,7 +338,8 @@ ai_memory/
 │   │   ├── templates/    Jinja2 pages
 │   │   └── static/       stylesheet
 │   └── main.py           entry point: Flask thread + pywebview window
-├── tests/                four suites, no test framework required
+├── mcp_server.py         launcher an MCP client spawns
+├── tests/                five suites, no test framework required
 ├── data/                 database and saved imports (gitignored)
 └── sample_conversations.json
 ```
@@ -353,7 +443,7 @@ conversation chains** re-runs detection over the whole library.
 python tests/run_all.py
 ```
 
-255 checks across four suites. They run against temporary databases and never
+332 checks across five suites. They run against temporary databases and never
 touch `data/`, so running them cannot harm a real library. The two semantic
 suites skip themselves with a note if sentence-transformers is not installed.
 

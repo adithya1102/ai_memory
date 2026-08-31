@@ -237,3 +237,15 @@ code {
     word-break: break-all;
 }
 .hint { font-size: 13px; color: var(--muted); margin-top: 6px; }
+
+pre {
+    overflow-x: auto;
+    padding: 12px 14px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 13px;
+    line-height: 1.5;
+}
+pre code { word-break: normal; }
+h3 { font-size: 14px; margin: 22px 0 8px; }

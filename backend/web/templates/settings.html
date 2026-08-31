@@ -56,6 +56,47 @@
       run downloads the model (~90&nbsp;MB) and may take a minute.</p>
   </form>
 
+  <h2>MCP server</h2>
+  <p class="meta">Lets an AI assistant search this library. Read-only, and it
+    exposes {{ mcp.tools|length }} tools: <code>{{ mcp.tools|join('</code>, <code>') | safe }}</code>.</p>
+
+  <table>
+    <tr>
+      <th>Start MCP server</th>
+      <td class="value">
+        <form method="post" action="{{ url_for('toggle_mcp') }}">
+          <input type="hidden" name="enabled" value="{{ '0' if mcp.running else '1' }}">
+          <button class="secondary toggle {{ 'on' if mcp.running else 'off' }}" type="submit">
+            {{ 'Running' if mcp.running else 'Stopped' }}
+          </button>
+        </form>
+      </td>
+    </tr>
+    {% if mcp.running %}
+      <tr><th>Listening on</th>
+          <td class="value"><code>{{ mcp.host }}:{{ mcp.port }}</code></td></tr>
+    {% endif %}
+  </table>
+
+  <p class="hint">
+    This toggle runs the server over a local TCP socket, bound to
+    <code>127.0.0.1</code> only. <strong>Claude Desktop does not use it</strong>
+    — it launches its own copy over stdio using the config below, and works
+    whether or not this toggle is on.
+  </p>
+
+  <h3>Connecting Claude Desktop</h3>
+  <p class="hint">Add this to <code>claude_desktop_config.json</code>, then
+    restart Claude Desktop.</p>
+<pre><code>{
+  "mcpServers": {
+    "ai-memory": {
+      "command": {{ mcp.python | tojson }},
+      "args": [{{ mcp.launcher | tojson }}]
+    }
+  }
+}</code></pre>
+
   <h2>Providers connected</h2>
   <table>
     <tr><th>Provider</th><th class="value">Conversations</th></tr>
