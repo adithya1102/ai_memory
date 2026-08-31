@@ -164,7 +164,7 @@ def import_chatgpt_export(conn, json_file_path):
     provider_id = db.insert_provider(conn, PROVIDER_NAME, PROVIDER_DISPLAY_NAME)
     conn.commit()
 
-    stats = {"inserted": 0, "updated": 0, "unchanged": 0,
+    stats = {"inserted": 0, "updated": 0, "unchanged": 0, "duplicate": 0,
              "messages": 0, "skipped": 0, "source": os.path.basename(json_file_path)}
 
     for index, raw in enumerate(_iter_conversations(payload)):
@@ -213,7 +213,11 @@ def import_chatgpt_export(conn, json_file_path):
             )
             stats[outcome] += 1
 
-            if outcome != "unchanged":
+            # Only these two outcomes own a row that needs messages written.
+            # "unchanged" already has them; "duplicate" inserted nothing at
+            # all, so writing messages would orphan them against a missing
+            # conversation row.
+            if outcome in ("inserted", "updated"):
                 # Replace the transcript wholesale; the FTS triggers keep the
                 # search index in step.
                 db.delete_messages(conn, conversation_id)

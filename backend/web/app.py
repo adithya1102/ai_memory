@@ -149,10 +149,11 @@ def create_app(db_path=db.DB_PATH, imports_dir=db.IMPORTS_DIR):
             return redirect(url_for("import_export"))
 
         flash(
-            "Imported %d new, %d updated, %d unchanged (%d messages, "
-            "%d skipped) — %d chains detected."
+            "Imported %d new, %d updated, %d unchanged, %d duplicate "
+            "(%d messages, %d skipped) — %d chains detected."
             % (stats["inserted"], stats["updated"], stats["unchanged"],
-               stats["messages"], stats["skipped"], stats["chains"]),
+               stats.get("duplicate", 0), stats["messages"], stats["skipped"],
+               stats["chains"]),
             "success",
         )
         return redirect(url_for("index"))

@@ -69,6 +69,10 @@ CREATE INDEX IF NOT EXISTS idx_conversations_provider
     ON conversations(provider_id);
 CREATE INDEX IF NOT EXISTS idx_conversations_updated
     ON conversations(updated_at DESC);
+-- Deliberately not UNIQUE: dedup is enforced in insert_conversation so that a
+-- genuine content collision is skipped rather than aborting the whole import.
+CREATE INDEX IF NOT EXISTS idx_conversations_content_hash
+    ON conversations(content_hash);
 CREATE INDEX IF NOT EXISTS idx_chain_members_conversation
     ON conversation_chain_members(conversation_id);
 
@@ -170,13 +174,44 @@ def insert_provider(conn, name, display_name):
     return cur.lastrowid
 
 
+def find_conversation_by_hash(conn, content_hash):
+    """Return the id of a conversation with this transcript, if one exists."""
+    if not content_hash:
+        return None
+    row = conn.execute(
+        "SELECT id FROM conversations WHERE content_hash = ? LIMIT 1",
+        (content_hash,),
+    ).fetchone()
+    return row["id"] if row else None
+
+
+def touch_conversation(conn, conversation_id):
+    """Record that an import saw this conversation again."""
+    conn.execute(
+        "UPDATE conversations SET last_imported_at = ? WHERE id = ?",
+        (utcnow(), conversation_id),
+    )
+
+
 def insert_conversation(conn, conversation_id, provider_id, title,
                         created_at=None, updated_at=None, metadata=None,
                         content_hash=None):
-    """Insert or update a conversation.
+    """Insert or update a conversation, deduplicating on id then content_hash.
 
-    Returns "inserted", "updated" or "unchanged".  "unchanged" means the stored
-    content_hash already matches, so the caller can skip re-inserting messages.
+    Returns one of:
+
+    - "inserted"  - genuinely new, the caller should write its messages.
+    - "updated"   - same id, different transcript; the caller should replace
+                    its messages so the search index is rebuilt.
+    - "unchanged" - same id, same transcript; nothing to do.
+    - "duplicate" - a *different* id already holds this exact transcript, so
+                    this is the same conversation re-exported under a fresh id.
+                    Nothing is inserted.
+
+    Matching on id takes priority: an export that keeps stable ids must still
+    be able to update a conversation whose content changed.  The content_hash
+    check is the fallback for exports that mint a new id every time, which
+    would otherwise accumulate a fresh copy on every import.
     """
     if isinstance(metadata, (dict, list)):
         metadata = json.dumps(metadata, ensure_ascii=False)
@@ -187,6 +222,10 @@ def insert_conversation(conn, conversation_id, provider_id, title,
     now = utcnow()
 
     if existing is None:
+        twin_id = find_conversation_by_hash(conn, content_hash)
+        if twin_id is not None:
+            touch_conversation(conn, twin_id)
+            return "duplicate"
         conn.execute(
             """INSERT INTO conversations
                    (id, provider_id, title, created_at, updated_at,

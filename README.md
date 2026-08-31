@@ -45,9 +45,12 @@ Open **Import**, then either upload `conversations.json` or paste its path on
 disk. Pointing at the path avoids copying the file, which is nicer for large
 exports.
 
-Import is idempotent. Conversations are matched on their ChatGPT id, and a
-SHA-256 hash of the transcript decides whether anything actually changed — so
-re-importing a newer export only touches what is new or edited.
+Import is idempotent — importing the same file twice imports nothing the second
+time. Each conversation is matched first on its ChatGPT id, and a SHA-256 hash
+of the transcript decides whether anything actually changed, so re-importing a
+newer export only touches what is new or edited. If the id is *not* recognised,
+the hash is checked on its own: an export that mints fresh ids each time is
+still recognised as the same conversation rather than piling up copies.
 
 Want to try it before exporting your own history? Import the included
 `sample_conversations.json`.
@@ -109,17 +112,24 @@ that fails to parse is counted as skipped rather than aborting the import.
 
 After each import, conversations are grouped by title similarity: titles are
 lowercased, stripped of punctuation and stopwords, and any two conversations
-whose remaining words have a Jaccard similarity above 0.5 are linked. Links
+whose remaining words reach an overlap coefficient of 0.5 are linked. Links
 merge transitively, so a run of related chats becomes one chain, ordered by
 creation date.
 
-This is deliberately crude, and worth knowing before you judge the results:
-Jaccard punishes titles of differing length. *"Sourdough starter
-troubleshooting"* and *"Sourdough starter feeding schedule"* share two words
-but score only 0.4, so they are **not** chained. Chains you expect will often
-be missing. The threshold is a parameter —
-`detect_chains(conn, threshold=0.35)` — and **Settings → Rebuild conversation
-chains** re-runs detection over the whole library.
+The overlap coefficient divides by the *smaller* of the two word sets, so a
+short title that is a subset of a longer one scores 1.0 instead of being
+penalised for the length difference. *"Sourdough starter troubleshooting"* and
+*"Sourdough starter feeding schedule"* score 0.67 and chain. The comparison is
+inclusive, which matters more than it sounds: *"Project discussion"* and
+*"Gusto forecasting discussion"* land on exactly 0.5, and an exclusive test
+would drop them on the boundary.
+
+It is still a crude heuristic that reads titles only. Sharing half of a
+two-word title means sharing one word, so a generic word like "discussion" is
+enough to link two conversations. Expect both false pairs and missed ones. The
+threshold is a parameter — `detect_chains(conn, threshold=0.7)` tightens it —
+and **Settings → Rebuild conversation chains** re-runs detection over the whole
+library.
 
 ## Limitations
 

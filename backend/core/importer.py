@@ -36,10 +36,20 @@ def significant_words(title):
     }
 
 
-def jaccard(a, b):
+def overlap_coeff(a, b):
+    """Overlap coefficient: intersection size / min(set sizes).
+
+    This measures how much of the smaller set is contained in the larger,
+    which suits conversation titles better than Jaccard.  A title that is
+    a subset of another (e.g. "Sourdough starter" vs "Sourdough starter
+    feeding schedule") scores 1.0 rather than being penalised for length
+    difference.
+
+    Returns 0.0 if either set is empty.
+    """
     if not a or not b:
         return 0.0
-    return len(a & b) / len(a | b)
+    return len(a & b) / min(len(a), len(b))
 
 
 class _UnionFind:
@@ -65,7 +75,10 @@ def _chain_name(members, word_sets):
     for conv_id, _title, _created in members:
         counts.update(word_sets[conv_id])
     threshold = max(2, (len(members) + 1) // 2)
-    common = [w for w, n in counts.most_common(4) if n >= threshold]
+    # Sort ties alphabetically: set iteration order varies between processes,
+    # and a chain that renames itself on every rebuild looks broken.
+    ranked = sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))
+    common = [w for w, n in ranked[:4] if n >= threshold]
     if common:
         return " ".join(w.capitalize() for w in common)
     earliest = members[0][1] or "Untitled"
@@ -75,10 +88,15 @@ def _chain_name(members, word_sets):
 def detect_chains(conn, threshold=0.5):
     """Group conversations with similar titles into chains.
 
-    Two conversations are linked when the Jaccard similarity of their
-    significant title words is above ``threshold``; linked pairs are merged
+    Two conversations are linked when the overlap coefficient of their
+    significant title words reaches ``threshold``; linked pairs are merged
     transitively.  Existing chains are discarded and rebuilt so the function is
     safe to run after every import.
+
+    The comparison is inclusive: at the default 0.5 a pair that shares exactly
+    half of the shorter title's significant words links.  "Project discussion"
+    and "Gusto forecasting discussion" score exactly 0.5, and an exclusive
+    test would drop them on the boundary.
 
     Returns the number of chains created.
     """
@@ -108,7 +126,7 @@ def detect_chains(conn, threshold=0.5):
                 if pair in checked:
                     continue
                 checked.add(pair)
-                if jaccard(word_sets[a], word_sets[b]) > threshold:
+                if overlap_coeff(word_sets[a], word_sets[b]) >= threshold:
                     uf.union(a, b)
 
     groups = defaultdict(list)
