@@ -10,7 +10,9 @@ why and every entry point degrades to a no-op so search falls back to keyword
 matching.
 """
 
+import hashlib
 import importlib.util
+import json
 import os
 import threading
 import time
@@ -97,11 +99,20 @@ def load_vec(conn):
 
 
 def ensure_vector_table(conn):
-    """Create the vector table if the extension is available."""
+    """Create the vector tables if the extension is available.
+
+    Two of them: conversation chunks, and memories.  They are kept apart
+    rather than sharing one table because a vec0 table is addressed by rowid,
+    and two sources writing into one rowid space would collide.
+    """
     if not load_vec(conn):
         return False
     conn.execute(
         "CREATE VIRTUAL TABLE IF NOT EXISTS chunk_vectors USING vec0("
+        "embedding float[%d] distance_metric=cosine)" % EMBEDDING_DIM
+    )
+    conn.execute(
+        "CREATE VIRTUAL TABLE IF NOT EXISTS memory_vectors USING vec0("
         "embedding float[%d] distance_metric=cosine)" % EMBEDDING_DIM
     )
     return True
@@ -549,4 +560,185 @@ def semantic_search(conn, query, top_k=10):
             "role": row["role"],
             "similarity": round(similarity, 4),
         })
+    return results
+
+
+# --------------------------------------------------------------------------
+# Memories
+#
+# A memory is one short fact, not a transcript, so it needs no chunking: one
+# row, one vector.  Everything else mirrors the conversation path -- the same
+# model, the same normalisation, the same content-hash bookkeeping so
+# re-embedding stays incremental.
+# --------------------------------------------------------------------------
+
+def _memory_hash(content, tags):
+    """What was embedded, so an edit re-embeds and an unchanged one does not."""
+    digest = hashlib.sha256()
+    digest.update((content or "").encode("utf-8"))
+    digest.update(b"\x00")
+    digest.update((tags or "").encode("utf-8"))
+    return digest.hexdigest()
+
+
+def _memory_text(content, tags):
+    """The text that gets embedded.
+
+    Tags are folded in because they are part of what the user meant: a memory
+    tagged "gym" should be reachable from a query about training even when the
+    body never says the word.
+    """
+    parsed = []
+    if tags:
+        try:
+            parsed = [t for t in json.loads(tags) if isinstance(t, str)]
+        except (ValueError, TypeError):
+            parsed = []
+    return ((content or "") + ("\n" + " ".join(parsed) if parsed else "")).strip()
+
+
+def pending_memories(conn):
+    """Memories with no embedding, or whose text or model has changed."""
+    rows = conn.execute(
+        """SELECT m.id, m.content, m.tags, e.content_hash AS stored_hash,
+                  e.model AS stored_model
+             FROM memories m
+             LEFT JOIN embedded_memories e ON e.memory_id = m.id"""
+    ).fetchall()
+
+    pending = []
+    for row in rows:
+        current = _memory_hash(row["content"], row["tags"])
+        if row["stored_hash"] != current or row["stored_model"] != MODEL_NAME:
+            pending.append({"id": row["id"], "content": row["content"],
+                            "tags": row["tags"], "hash": current})
+    return pending
+
+
+def sync_memory_embeddings(conn, batch_size=64):
+    """Embed every memory that is new or changed.  Returns a stats dict."""
+    stats = {"memories": 0, "skipped": None}
+
+    ok, reason = availability()
+    if not ok:
+        stats["skipped"] = reason
+        return stats
+    if not ensure_vector_table(conn):
+        stats["skipped"] = "sqlite-vec extension could not be loaded"
+        return stats
+
+    _prune_memory_orphans(conn)
+    pending = pending_memories(conn)
+    if not pending:
+        conn.commit()
+        return stats
+
+    try:
+        model = get_model()
+    except Exception as exc:  # noqa: BLE001 - reported, never raised
+        stats["skipped"] = "could not load %s: %s" % (MODEL_NAME, exc)
+        return stats
+
+    import sqlite_vec
+
+    from backend.core import database as db
+
+    texts = [_memory_text(m["content"], m["tags"]) for m in pending]
+    vectors = model.encode(texts, batch_size=batch_size,
+                           normalize_embeddings=True, show_progress_bar=False)
+
+    for memory, vector in zip(pending, vectors):
+        # vec0 has no upsert; replace the row outright.
+        conn.execute("DELETE FROM memory_vectors WHERE rowid = ?",
+                     (memory["id"],))
+        conn.execute(
+            "INSERT INTO memory_vectors(rowid, embedding) VALUES (?, ?)",
+            (memory["id"], sqlite_vec.serialize_float32(vector)),
+        )
+        conn.execute(
+            """INSERT INTO embedded_memories
+                   (memory_id, content_hash, model, embedded_at)
+               VALUES (?, ?, ?, ?)
+               ON CONFLICT(memory_id) DO UPDATE SET
+                   content_hash = excluded.content_hash,
+                   model        = excluded.model,
+                   embedded_at  = excluded.embedded_at""",
+            (memory["id"], memory["hash"], MODEL_NAME, db.utcnow()),
+        )
+        stats["memories"] += 1
+
+    conn.commit()
+    return stats
+
+
+def _prune_memory_orphans(conn):
+    """Drop vectors whose memory has gone.
+
+    ``embedded_memories`` cascades on delete, but a vec0 virtual table takes
+    no foreign key, so its rows have to be swept by hand.
+    """
+    if not load_vec(conn):
+        return
+    try:
+        rows = conn.execute(
+            """SELECT v.rowid FROM memory_vectors v
+                WHERE NOT EXISTS (SELECT 1 FROM memories m WHERE m.id = v.rowid)"""
+        ).fetchall()
+    except Exception:
+        return
+    for row in rows:
+        conn.execute("DELETE FROM memory_vectors WHERE rowid = ?", (row[0],))
+
+
+def has_memory_embeddings(conn):
+    if not load_vec(conn):
+        return False
+    try:
+        return conn.execute(
+            "SELECT COUNT(*) FROM memory_vectors").fetchone()[0] > 0
+    except Exception:
+        return False
+
+
+def semantic_search_memories(conn, query, top_k=10):
+    """Return the top_k memories most similar to the query.
+
+    Same contract as ``semantic_search``: [] whenever semantic search cannot
+    run, so callers treat it as "no extra results" rather than an error.
+    """
+    if not query or not query.strip():
+        return []
+    ok, _reason = availability()
+    if not ok or not load_vec(conn):
+        return []
+    if not has_memory_embeddings(conn):
+        return []
+
+    model = get_model_if_ready()
+    if model is None:
+        start_preload()
+        return []
+
+    try:
+        import sqlite_vec
+        vector = model.encode([query], normalize_embeddings=True,
+                              show_progress_bar=False)[0]
+        rows = conn.execute(
+            """SELECT v.rowid AS memory_id, v.distance AS distance,
+                      m.content, m.source, m.tags, m.created_at,
+                      m.conversation_id
+                 FROM memory_vectors v
+                 JOIN memories m ON m.id = v.rowid
+                WHERE v.embedding MATCH ? AND k = ?
+                ORDER BY v.distance""",
+            (sqlite_vec.serialize_float32(vector), top_k),
+        ).fetchall()
+    except Exception:
+        return []
+
+    results = []
+    for row in rows:
+        item = dict(row)
+        item["similarity"] = round(1.0 - (item.pop("distance") or 0.0) / 2.0, 4)
+        results.append(item)
     return results

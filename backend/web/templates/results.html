@@ -52,21 +52,29 @@
   {% endif %}
 
   {% for r in results %}
-    <a class="card" href="{{ url_for('conversation', conversation_id=r.conversation_id, q=query) }}">
+    {# A memory has no transcript to open unless it was saved from one, so it
+       renders as a plain card rather than a dead link. #}
+    {% set target = url_for('conversation', conversation_id=r.conversation_id, q=query)
+                    if r.conversation_id else none %}
+    <{{ 'a' if target else 'div' }} class="card{{ ' memory' if r.kind == 'memory' }}"
+       {% if target %}href="{{ target }}"{% endif %}>
       <div class="title">
         {{ r.title or 'Untitled conversation' }}
+        {% if r.kind == 'memory' %}<span class="badge memory">memory</span>{% endif %}
         <span class="badge {{ r.match_label }}">{{ r.match_label }}</span>
       </div>
       <div class="meta">
         {{ r.provider_name }}<span class="dot">·</span>
-        {{ r.created_at | datefmt }}<span class="dot">·</span>
-        {{ r.message_count }} messages
+        {{ r.created_at | datefmt }}
+        {% if r.kind != 'memory' %}
+          <span class="dot">·</span>{{ r.message_count }} messages
+        {% endif %}
         {% if r.similarity is not none %}
           <span class="dot">·</span>{{ (r.similarity * 100) | round | int }}% similar
         {% endif %}
       </div>
       <p class="snippet">{{ r.snippet_html | safe }}</p>
-    </a>
+    </{{ 'a' if target else 'div' }}>
   {% else %}
     <div class="empty">
       <p>Nothing matched “{{ query }}”.</p>

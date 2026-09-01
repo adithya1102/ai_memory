@@ -2,7 +2,7 @@
 
 ![Python](https://img.shields.io/badge/python-3.10%2B-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
-![Tests](https://img.shields.io/badge/tests-634%20passing-brightgreen)
+![Tests](https://img.shields.io/badge/tests-699%20passing-brightgreen)
 ![Local first](https://img.shields.io/badge/data-100%25%20local-informational)
 
 **A local-first memory layer for your AI conversations. Search everything you
@@ -585,7 +585,7 @@ conversation chains** re-runs detection over the whole library.
 python tests/run_all.py
 ```
 
-634 checks across nine suites. They run against temporary databases and never
+699 checks across ten suites. They run against temporary databases and never
 touch `data/`, so running them cannot harm a real library. The two semantic
 suites skip themselves with a note if sentence-transformers is not installed.
 

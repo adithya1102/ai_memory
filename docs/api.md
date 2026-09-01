@@ -201,6 +201,14 @@ curl 'http://127.0.0.1:5000/api/v1/search?q=sourdough&limit=5'
 `match_type` is `keyword`, `semantic` or `both`. Identical to what MCP returns
 for the same query — same ranking, same Reciprocal Rank Fusion.
 
+Search covers **conversations and saved memories together**, in one ranking.
+Every result carries a `kind`:
+
+| `kind` | Extra fields | Notes |
+|---|---|---|
+| `conversation` | `conversation_id` | open it in full with `GET /conversations/<id>` |
+| `memory` | `memory_id`, `content`, `tags` | the whole fact is in `content`; `conversation_id` is set only if the memory was saved from one |
+
 ---
 
 ### `GET /chains/<id>`
@@ -295,6 +303,12 @@ curl -X POST http://127.0.0.1:5000/api/v1/memories \
   "updated_at": "2026-09-01T14:02:11+00:00"
 }
 ```
+
+Saved memories are **searchable**. They appear in `GET /api/v1/search`
+alongside conversations, and in the MCP `search_memory` tool, each tagged
+`"kind": "memory"` and carrying its full `content`. Keyword indexing happens
+on save; the semantic vector is written then too, and the response reports
+both under `indexed`.
 
 **`GET /memories`** — newest first. Optional `limit` (default 50, capped at
 500), `source`, `conversation_id`.

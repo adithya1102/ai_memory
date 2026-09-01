@@ -27,6 +27,7 @@ SUITES = [
     ("test_api.py", "Bridge REST API, ingest, memories, auth", True),
     ("test_context.py", "/context block, PWA page, extension assets", True),
     ("test_pwa.py", "mobile PWA, manifest, service worker caching", True),
+    ("test_memory_search.py", "memories in keyword, semantic and MCP search", True),
 ]
 
 NOISE = re.compile(r"it/s\]|HF Hub|Loading weights|^\[transformers\]")

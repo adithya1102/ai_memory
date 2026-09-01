@@ -134,6 +134,27 @@ CREATE VIRTUAL TABLE IF NOT EXISTS conversation_fts USING fts5(
     content,
     tokenize='porter unicode61'
 );
+
+-- Memories are searched the same way conversations are.  Without this a fact
+-- saved through the API or the app is stored but unfindable: the thing the
+-- user deliberately kept would be the one thing search could not see.
+-- rowid is kept equal to memories.rowid, which for an INTEGER PRIMARY KEY is
+-- the id itself.
+CREATE VIRTUAL TABLE IF NOT EXISTS memory_fts USING fts5(
+    memory_id UNINDEXED,
+    content,
+    tags,
+    tokenize='porter unicode61'
+);
+
+-- Bookkeeping for memory embeddings, mirroring embedded_conversations.  A
+-- memory is short enough to be one vector, so there is no chunking here.
+CREATE TABLE IF NOT EXISTS embedded_memories (
+    memory_id   INTEGER PRIMARY KEY REFERENCES memories(id) ON DELETE CASCADE,
+    content_hash TEXT,
+    model       TEXT,
+    embedded_at TEXT
+);
 """
 
 TRIGGERS = """
@@ -179,6 +200,26 @@ CREATE TRIGGER IF NOT EXISTS messages_ad AFTER DELETE ON messages BEGIN
                                 WHERE conversation_id = old.conversation_id
                                 ORDER BY message_order), '')
      WHERE rowid = (SELECT rowid FROM conversations WHERE id = old.conversation_id);
+END;
+
+-- Memories are small and written one at a time, so the index is maintained
+-- inline rather than rebuilt.
+CREATE TRIGGER IF NOT EXISTS memories_ai AFTER INSERT ON memories BEGIN
+    INSERT INTO memory_fts(rowid, memory_id, content, tags)
+    VALUES (new.rowid, new.id, COALESCE(new.content, ''),
+            COALESCE(new.tags, ''));
+END;
+
+CREATE TRIGGER IF NOT EXISTS memories_au AFTER UPDATE ON memories BEGIN
+    UPDATE memory_fts
+       SET memory_id = new.id,
+           content   = COALESCE(new.content, ''),
+           tags      = COALESCE(new.tags, '')
+     WHERE rowid = new.rowid;
+END;
+
+CREATE TRIGGER IF NOT EXISTS memories_ad AFTER DELETE ON memories BEGIN
+    DELETE FROM memory_fts WHERE rowid = old.rowid;
 END;
 """
 
@@ -231,12 +272,36 @@ def get_connection(db_path=DB_PATH):
 
 
 def init_db(db_path=DB_PATH):
-    """Create the schema, the FTS5 table and its sync triggers."""
+    """Create the schema, the FTS5 tables and their sync triggers."""
     conn = get_connection(db_path)
     with conn:
         conn.executescript(SCHEMA)
         conn.executescript(TRIGGERS)
+        backfill_memory_fts(conn)
     return conn
+
+
+def backfill_memory_fts(conn):
+    """Index memories that were written before ``memory_fts`` existed.
+
+    The triggers only fire on new writes, so a library that already held
+    memories would keep them permanently unsearchable after an upgrade -- the
+    facts the user deliberately kept would be the ones search could not find.
+    Runs on every init and does nothing once the index has caught up.
+    """
+    missing = conn.execute(
+        """SELECT m.rowid AS rowid, m.id, m.content, m.tags
+             FROM memories m
+            WHERE NOT EXISTS (SELECT 1 FROM memory_fts f
+                               WHERE f.rowid = m.rowid)"""
+    ).fetchall()
+    for row in missing:
+        conn.execute(
+            "INSERT INTO memory_fts(rowid, memory_id, content, tags) "
+            "VALUES (?, ?, ?, ?)",
+            (row["rowid"], row["id"], row["content"] or "", row["tags"] or ""),
+        )
+    return len(missing)
 
 
 # --------------------------------------------------------------------------

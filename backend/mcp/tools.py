@@ -9,6 +9,8 @@ tools translate between the core's return shapes and the MCP payload, and
 nothing else.
 """
 
+import json
+
 from backend.core import database as db
 from backend.core import embeddings
 from backend.core.search import SEMANTIC_ENABLED_KEY, hybrid_search
@@ -30,12 +32,14 @@ TOOL_SCHEMAS = [
     {
         "name": "search_memory",
         "description": (
-            "Search the user's archived AI conversations by keyword and by "
-            "meaning at once. Use this to find past discussions even when you "
-            "do not know the exact words used -- a query like 'how do I get "
-            "stronger' will find a conversation about building muscle. "
-            "Returns matching conversations with a snippet and the id needed "
-            "to read the full transcript with get_conversation."
+            "Search the user's archived AI conversations and saved memories "
+            "by keyword and by meaning at once. Use this to find past "
+            "discussions even when you do not know the exact words used -- a "
+            "query like 'how do I get stronger' will find a conversation "
+            "about building muscle. Each result has a 'kind': 'conversation' "
+            "results carry a conversation_id to read in full with "
+            "get_conversation; 'memory' results are short facts the user "
+            "chose to keep, and carry their whole text in 'content'."
         ),
         "inputSchema": {
             "type": "object",
@@ -100,7 +104,13 @@ TOOL_SCHEMAS = [
 # --------------------------------------------------------------------------
 
 def search_memory(conn, query, limit=DEFAULT_LIMIT):
-    """Hybrid keyword + semantic search over every archived conversation."""
+    """Hybrid keyword + semantic search over conversations and memories.
+
+    Both are searched.  A result's ``kind`` says which it is: a
+    "conversation" carries a conversation_id that get_conversation will open,
+    a "memory" carries a memory_id and its full text in ``content``, since a
+    memory is short enough that there is nothing further to fetch.
+    """
     if not isinstance(query, str) or not query.strip():
         raise ToolError("query must be a non-empty string")
     try:
@@ -116,15 +126,29 @@ def search_memory(conn, query, limit=DEFAULT_LIMIT):
 
     results = []
     for row in hybrid_search(conn, query, limit=limit):
-        results.append({
-            "conversation_id": row["conversation_id"],
+        kind = row.get("kind", "conversation")
+        item = {
+            "kind": kind,
+            "conversation_id": row.get("conversation_id"),
             "title": row.get("title") or "Untitled conversation",
             "provider": row.get("provider_name"),
             "date": row.get("created_at"),
             "snippet": row.get("snippet") or "",
             "relevance_score": round(row.get("score") or 0.0, 6),
             "match_type": row.get("match_label"),
-        })
+        }
+        if kind == "memory":
+            item["memory_id"] = row.get("memory_id")
+            # The whole memory, not a snippet of it: it is one short fact, and
+            # there is no get_memory tool to follow up with.
+            item["content"] = row.get("content") or ""
+            tags = row.get("tags")
+            if tags:
+                try:
+                    item["tags"] = json.loads(tags)
+                except (ValueError, TypeError):
+                    item["tags"] = []
+        results.append(item)
     return {"query": query, "count": len(results), "results": results}
 
 

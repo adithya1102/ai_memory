@@ -474,6 +474,24 @@ def create_memory():
     memory = db.insert_memory(conn, content=content.strip(),
                               source=payload.get("source"), tags=tags,
                               conversation_id=conversation_id)
+
+    # Keyword search sees it already -- the FTS triggers fired on insert.
+    # Semantic search needs a vector, and a memory is one short string, so
+    # embedding it here costs a single encode rather than a rebuild. Failure
+    # is reported, never raised: the memory is saved and findable by keyword
+    # either way.
+    memory["indexed"] = {"keyword": True, "semantic": False}
+    from backend.core.search import SEMANTIC_ENABLED_KEY
+    if db.get_flag(conn, SEMANTIC_ENABLED_KEY, default=True):
+        try:
+            from backend.core import embeddings
+            stats = embeddings.sync_memory_embeddings(conn)
+            memory["indexed"]["semantic"] = stats.get("memories", 0) > 0
+            if stats.get("skipped"):
+                memory["indexed"]["note"] = stats["skipped"]
+        except Exception as exc:  # noqa: BLE001 - surfaced, not raised
+            memory["indexed"]["note"] = str(exc)
+
     return jsonify(memory), 201
 
 

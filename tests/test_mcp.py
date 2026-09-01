@@ -51,10 +51,15 @@ res = mcp_tools.search_memory(conn, "gym workout")
 titles = [r["title"] for r in res["results"]]
 check("search_memory('gym workout') finds Welcome",
       titles and titles[0] == "Welcome", titles)
-check("result has exactly the documented keys",
-      set(res["results"][0]) == {"conversation_id", "title", "provider", "date",
-                                 "snippet", "relevance_score", "match_type"},
+# A conversation result carries exactly these. Memory results add memory_id,
+# content and tags on top; that shape is covered by test_memory_search.py.
+check("a conversation result has exactly the documented keys",
+      set(res["results"][0]) == {"kind", "conversation_id", "title", "provider",
+                                 "date", "snippet", "relevance_score",
+                                 "match_type"},
       sorted(res["results"][0]))
+check("and is labelled as a conversation",
+      res["results"][0]["kind"] == "conversation", res["results"][0]["kind"])
 check("provider is populated", res["results"][0]["provider"] == "ChatGPT")
 check("date is populated", bool(res["results"][0]["date"]))
 check("snippet is populated", bool(res["results"][0]["snippet"].strip()))

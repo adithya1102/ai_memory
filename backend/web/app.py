@@ -304,18 +304,27 @@ def create_app(db_path=db.DB_PATH, imports_dir=db.IMPORTS_DIR):
         conn = connection()
         try:
             result = embeddings.sync_embeddings(conn)
+            # Memories are searched alongside conversations, so a rebuild that
+            # skipped them would leave half the library keyword-only.
+            memory_result = embeddings.sync_memory_embeddings(conn)
         except Exception as exc:  # noqa: BLE001 - surfaced to the user
             flash("Embedding failed: %s" % exc, "error")
             return redirect(url_for("settings"))
+
+        embedded_memories = memory_result.get("memories", 0)
         if result["skipped"]:
             flash("Semantic search unavailable: %s" % result["skipped"], "error")
-        elif result["conversations"] == 0:
+        elif result["conversations"] == 0 and embedded_memories == 0:
             flash("Semantic index is already up to date.", "success")
         else:
-            flash("Embedded %d conversation%s into %d chunks."
-                  % (result["conversations"],
-                     "" if result["conversations"] == 1 else "s",
-                     result["chunks"]), "success")
+            message = "Embedded %d conversation%s into %d chunks." % (
+                result["conversations"],
+                "" if result["conversations"] == 1 else "s",
+                result["chunks"])
+            if embedded_memories:
+                message += " Embedded %d memor%s." % (
+                    embedded_memories, "y" if embedded_memories == 1 else "ies")
+            flash(message, "success")
         return redirect(url_for("settings"))
 
     @app.route("/import", methods=["GET", "POST"])
