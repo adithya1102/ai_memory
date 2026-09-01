@@ -1,0 +1,199 @@
+{
+  "note": "Synthetic demo data. No real conversations, no personal information. Every name, date and detail here is invented for illustration.",
+  "conversations": [
+    {
+      "id": "chatgpt:demo-001",
+      "provider": "ChatGPT",
+      "title": "Welcome",
+      "date": "2024-08-23",
+      "messages": [
+        {"role": "user", "content": "I want to build muscle and start going to the gym. What should my workout plan look like for a beginner?"},
+        {"role": "assistant", "content": "Start with full body three times a week rather than a split. Squat, bench, row, overhead press, deadlift. Three sets of five, adding a little weight each session while form holds."},
+        {"role": "user", "content": "How long before I see anything change?"},
+        {"role": "assistant", "content": "Strength moves in weeks, visible size in months. The first six weeks are mostly your nervous system learning the movement, which is unglamorous but it is the part that makes everything later possible."}
+      ]
+    },
+    {
+      "id": "chatgpt:demo-002",
+      "provider": "ChatGPT",
+      "title": "Sourdough starter troubleshooting",
+      "date": "2024-09-02",
+      "messages": [
+        {"role": "user", "content": "My sourdough starter isn't rising. It's day 5 and there are no bubbles at all."},
+        {"role": "assistant", "content": "Day 5 is the famous dead zone. The early bacteria have crashed and the yeast has not taken over yet. Keep feeding on schedule and give it warmth, around 24 degrees."},
+        {"role": "user", "content": "So I should not throw it out?"},
+        {"role": "assistant", "content": "Not yet. Most starters that get discarded are discarded on day 4 or 5, about 48 hours before they would have worked."}
+      ]
+    },
+    {
+      "id": "chatgpt:demo-003",
+      "provider": "ChatGPT",
+      "title": "Feeding schedule for a mature culture",
+      "date": "2024-09-11",
+      "messages": [
+        {"role": "user", "content": "The starter is active now. How often should I feed it if I only bake at weekends?"},
+        {"role": "assistant", "content": "Keep it in the fridge and feed once a week. Take it out the night before you bake, feed it, and leave it on the counter until it doubles."},
+        {"role": "user", "content": "Does the fridge hurt it?"},
+        {"role": "assistant", "content": "No. Cold slows it rather than killing it. A neglected fridge starter will usually come back after two or three warm feedings."}
+      ]
+    },
+    {
+      "id": "claude:demo-004",
+      "provider": "Claude",
+      "title": "Project Phoenix kickoff",
+      "date": "2025-01-14",
+      "messages": [
+        {"role": "user", "content": "I am starting Project Phoenix with a small team and want to target a Q4 launch. How should I structure the first month?"},
+        {"role": "assistant", "content": "Spend the first month proving the riskiest assumption rather than building the obvious parts. Whatever kills the project if it is false, test that first."},
+        {"role": "user", "content": "The risky part is whether the import step can be made fast enough."},
+        {"role": "assistant", "content": "Then build a throwaway version of only the import step this month. If it is fast enough you have removed the risk. If it is not, you have learned that in January rather than October."}
+      ]
+    },
+    {
+      "id": "claude:demo-005",
+      "provider": "Claude",
+      "title": "What has to be true before we ship",
+      "date": "2025-03-02",
+      "messages": [
+        {"role": "user", "content": "Phoenix is on track for the Q4 launch. What should the release checklist actually contain?"},
+        {"role": "assistant", "content": "Fewer items than you think, each one a thing that would embarrass you if it were broken. A rollback you have practised, a way to see errors, and a written answer to who gets called at 2am."},
+        {"role": "user", "content": "The team is four people. Is a formal on-call rota overkill?"},
+        {"role": "assistant", "content": "The rota is overkill; the written answer is not. Four people can share a phone number, but only if everyone agrees in advance whose it is."}
+      ]
+    },
+    {
+      "id": "gemini:demo-006",
+      "provider": "Gemini",
+      "title": "Couch to 5k, week 3",
+      "date": "2025-02-08",
+      "messages": [
+        {"role": "user", "content": "I am on week three of a running plan and my shins ache after every session. Should I stop?"},
+        {"role": "assistant", "content": "Ache that fades within a day is usually load adaptation. Pain that is sharp, or that is still there the next morning, is worth resting."},
+        {"role": "user", "content": "It fades by the evening."},
+        {"role": "assistant", "content": "Then keep going but hold the volume where it is for another week instead of progressing. Shin splints almost always come from adding distance faster than the tissue remodels."}
+      ]
+    },
+    {
+      "id": "claude:demo-007",
+      "provider": "Claude",
+      "title": "Kyoto in November",
+      "date": "2025-06-19",
+      "messages": [
+        {"role": "user", "content": "Thinking about Kyoto in late November. Is that too late for the autumn colours?"},
+        {"role": "assistant", "content": "Late November is usually the peak in Kyoto, a week or two behind the mountains. The risk is crowds rather than timing."},
+        {"role": "user", "content": "How bad are the crowds?"},
+        {"role": "assistant", "content": "At the famous temples, genuinely bad by nine in the morning. The same maples are empty at seven, and the light is better."}
+      ]
+    },
+    {
+      "id": "gemini:demo-008",
+      "provider": "Gemini",
+      "title": "Rail pass or domestic flights",
+      "date": "2025-06-21",
+      "messages": [
+        {"role": "user", "content": "For two weeks in Japan, is the rail pass worth it or should I fly between cities?"},
+        {"role": "assistant", "content": "It depends almost entirely on whether you do a long leg. Tokyo to Kyoto and back roughly pays for a seven day pass on its own."},
+        {"role": "user", "content": "We are doing Tokyo, Kyoto, and Kanazawa."},
+        {"role": "assistant", "content": "That is comfortably in pass territory. Flying would win only if you added Hokkaido or Okinawa, where the distances stop favouring the train."}
+      ]
+    },
+    {
+      "id": "chatgpt:demo-009",
+      "provider": "ChatGPT",
+      "title": "Memory leak in a Node service",
+      "date": "2025-04-03",
+      "messages": [
+        {"role": "user", "content": "My Node process grows to 2GB over a few days and then gets killed. How do I find the leak?"},
+        {"role": "assistant", "content": "Take two heap snapshots an hour apart under load and compare retained size. The leak is almost always the object type that grew, not the one that is largest."},
+        {"role": "user", "content": "The biggest growth is in closures."},
+        {"role": "assistant", "content": "Look for event listeners added per request and never removed. A closure held by a listener keeps its whole scope alive, which is why the count grows in lockstep with traffic."}
+      ]
+    },
+    {
+      "id": "claude:demo-010",
+      "provider": "Claude",
+      "title": "Requests are slow under load",
+      "date": "2025-04-17",
+      "messages": [
+        {"role": "user", "content": "My API is fine with one user and terrible with fifty. Where do I even start?"},
+        {"role": "assistant", "content": "Measure before guessing. Add timing around the database call and around everything else, then look at which one grows with concurrency."},
+        {"role": "user", "content": "The database call goes from 4ms to 900ms."},
+        {"role": "assistant", "content": "That is connection pool exhaustion rather than a slow query. The query is still 4ms; the other 896 are spent waiting for a free connection."}
+      ]
+    },
+    {
+      "id": "gemini:demo-011",
+      "provider": "Gemini",
+      "title": "Something like Piranesi",
+      "date": "2025-05-30",
+      "messages": [
+        {"role": "user", "content": "I loved Piranesi. What should I read next?"},
+        {"role": "assistant", "content": "For the unreliable narrator in a strange architecture, try Gormenghast. For the same gentleness of voice, try The Once and Future King."},
+        {"role": "user", "content": "I want the strangeness more than the gentleness."},
+        {"role": "assistant", "content": "Then Roadside Picnic. It has the same quality of a person calmly describing a world whose rules they cannot explain."}
+      ]
+    },
+    {
+      "id": "claude:demo-012",
+      "provider": "Claude",
+      "title": "Non-fiction for a long flight",
+      "date": "2025-07-08",
+      "messages": [
+        {"role": "user", "content": "Fourteen hour flight. I want non-fiction that does not need a pen and paper."},
+        {"role": "assistant", "content": "Narrative non-fiction travels best. The Sixth Extinction, or Say Nothing if you want something that reads like a thriller."},
+        {"role": "user", "content": "Anything about engineering?"},
+        {"role": "assistant", "content": "To Engineer Is Human. Short chapters, each one a failure explained, which is a good shape for a flight where you keep getting interrupted."}
+      ]
+    },
+    {
+      "id": "chatgpt:demo-013",
+      "provider": "ChatGPT",
+      "title": "Meal prep for one person",
+      "date": "2025-08-12",
+      "messages": [
+        {"role": "user", "content": "I keep wasting food cooking for one. How do I meal prep without eating the same thing five days running?"},
+        {"role": "assistant", "content": "Prep components rather than meals. A grain, a roasted vegetable, a protein and two sauces recombine into five different dinners."},
+        {"role": "user", "content": "What keeps best?"},
+        {"role": "assistant", "content": "Roasted root vegetables and cooked grains hold four or five days. Dressed leaves and anything fried do not survive past the first night."}
+      ]
+    },
+    {
+      "id": "claude:demo-014",
+      "provider": "Claude",
+      "title": "Picking a database for a side project",
+      "date": "2025-09-05",
+      "messages": [
+        {"role": "user", "content": "Side project, single user, might grow. Postgres or SQLite?"},
+        {"role": "assistant", "content": "SQLite until you have a reason. One file, no server, and it handles far more load than its reputation suggests."},
+        {"role": "user", "content": "What would be a reason to move?"},
+        {"role": "assistant", "content": "Concurrent writers from more than one process, or needing the database on a different machine from the app. Neither is true for a single user tool."}
+      ]
+    },
+    {
+      "id": "gemini:demo-015",
+      "provider": "Gemini",
+      "title": "Weekend in Lisbon",
+      "date": "2025-10-01",
+      "messages": [
+        {"role": "user", "content": "Three days in Lisbon, first time. What is worth building the trip around?"},
+        {"role": "assistant", "content": "Pick a hill and a viewpoint per day rather than a list of sights. The city is best experienced as walking between two points slowly."},
+        {"role": "user", "content": "Is a day trip to Sintra worth it?"},
+        {"role": "assistant", "content": "Yes, but go early and treat it as the whole day. Sintra squeezed into an afternoon is the most common regret people report."}
+      ]
+    }
+  ],
+  "chains": [
+    {
+      "name": "Sourdough",
+      "conversations": ["chatgpt:demo-002", "chatgpt:demo-003"]
+    },
+    {
+      "name": "Project Phoenix",
+      "conversations": ["claude:demo-004", "claude:demo-005"]
+    },
+    {
+      "name": "Japan trip",
+      "conversations": ["claude:demo-007", "gemini:demo-008"]
+    }
+  ]
+}

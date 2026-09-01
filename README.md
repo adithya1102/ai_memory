@@ -2,7 +2,7 @@
 
 ![Python](https://img.shields.io/badge/python-3.10%2B-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
-![Tests](https://img.shields.io/badge/tests-712%20passing-brightgreen)
+![Tests](https://img.shields.io/badge/tests-713%20passing-brightgreen)
 ![Local first](https://img.shields.io/badge/data-100%25%20local-informational)
 
 **A local-first memory layer for your AI conversations. Search everything you
@@ -197,6 +197,7 @@ Cloud sync would make some things easier. It is not worth it for this data.
 | **Conversation chains** | Related conversations grouped automatically, so a topic you returned to over weeks reads as one thread. |
 | **Safe re-import** | Import the same export twice and nothing duplicates. Matched on id, then on content hash, so even a re-generated export is recognised. |
 | **Multi-provider** | ChatGPT, Claude and Gemini in one library and one index. The provider is detected from the file. |
+| **Zero-setup demo** | A standalone page in [`demo/`](demo/) that runs on synthetic data with no install, no backend and no build step — open the file, or host it anywhere static. |
 | **Memories** | Short facts worth keeping, saved from the mobile app or the Bridge API. Indexed for keyword *and* semantic search, and returned by every surface — MCP, the REST API, the browser extension and the web UI — alongside conversations in one ranking. |
 | **MCP server** | Three read-only tools so Claude Desktop can search your archive for you. |
 | **Bridge API** | A REST layer at `/api/v1` for everything that cannot speak MCP — extensions, proxies, scripts. Reads and writes the same library. |
@@ -630,7 +631,7 @@ conversation chains** re-runs detection over the whole library.
 python tests/run_all.py
 ```
 
-712 checks across ten suites. They run against temporary databases and never
+713 checks across ten suites. They run against temporary databases and never
 touch `data/`, so running them cannot harm a real library. The two semantic
 suites skip themselves with a note if sentence-transformers is not installed.
 

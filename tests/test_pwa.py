@@ -218,7 +218,8 @@ NODE = shutil.which("node")
 if not NODE:
     print("  (node not installed -- JS suites skipped)")
 else:
-    for name in ("test_sw.js", "test_extension.js", "test_capture.js"):
+    for name in ("test_sw.js", "test_extension.js", "test_capture.js",
+                 "test_demo.js"):
         done = subprocess.run([NODE, os.path.join(ROOT, "tests", name)],
                               capture_output=True, text=True, timeout=300,
                               encoding="utf-8")

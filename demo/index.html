@@ -1,0 +1,636 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ContextVault — demo</title>
+<meta name="description" content="Search everything you've told any AI — from one box.">
+<meta name="theme-color" content="#0e1013">
+<style>
+  :root {
+    --bg: #0e1013;
+    --surface: #171a20;
+    --surface-2: #1f232b;
+    --line: #2b3039;
+    --text: #e9ecf1;
+    --muted: #98a1b0;
+    --accent: #7c9cff;
+    --accent-ink: #0c0f14;
+    --chatgpt: #10a37f;
+    --claude: #d97757;
+    --gemini: #4285f4;
+    --radius: 14px;
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 16px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          system-ui, sans-serif;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  .wrap {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 40px 18px 72px;
+  }
+
+  header { text-align: center; margin-bottom: 30px; }
+
+  .brand {
+    display: inline-flex; align-items: center; gap: 9px;
+    font-size: 14px; font-weight: 650; letter-spacing: 0.02em;
+    color: var(--muted); margin-bottom: 18px;
+  }
+  .brand svg { width: 20px; height: 20px; fill: none; stroke: var(--accent);
+               stroke-width: 1.8; }
+
+  h1 {
+    margin: 0 0 10px;
+    font-size: clamp(25px, 5.6vw, 38px);
+    line-height: 1.18;
+    letter-spacing: -0.022em;
+    font-weight: 680;
+  }
+
+  .sub { margin: 0; color: var(--muted); font-size: 15.5px; }
+
+  /* ---------------- search ---------------- */
+
+  .searchbox { position: relative; margin: 30px 0 8px; }
+
+  .searchbox svg {
+    position: absolute; left: 18px; top: 50%; transform: translateY(-50%);
+    width: 21px; height: 21px; fill: none; stroke: var(--muted);
+    stroke-width: 2; stroke-linecap: round; pointer-events: none;
+  }
+
+  #q {
+    width: 100%;
+    min-height: 62px;
+    padding: 16px 18px 16px 52px;
+    /* 16px minimum, or iOS Safari zooms the page on focus. */
+    font: inherit;
+    font-size: 17px;
+    color: var(--text);
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    -webkit-appearance: none;
+    appearance: none;
+  }
+
+  #q::placeholder { color: #6d7684; }
+  #q:focus { outline: 2px solid var(--accent); outline-offset: -1px;
+             border-color: transparent; }
+
+  .hint {
+    display: flex; flex-wrap: wrap; gap: 7px; align-items: center;
+    margin-bottom: 26px; font-size: 13px; color: var(--muted);
+  }
+
+  .chip {
+    padding: 5px 11px; border-radius: 999px; cursor: pointer;
+    background: var(--surface-2); border: 1px solid var(--line);
+    color: var(--text); font: inherit; font-size: 13px;
+  }
+  .chip:hover { border-color: var(--accent); }
+
+  .status { min-height: 22px; margin: 0 2px 12px; font-size: 13.5px;
+            color: var(--muted); }
+
+  /* ---------------- results ---------------- */
+
+  .results { display: flex; flex-direction: column; gap: 11px; }
+
+  .card {
+    padding: 15px 16px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    animation: rise 180ms ease both;
+  }
+
+  @keyframes rise { from { opacity: 0; transform: translateY(5px); } }
+
+  .card h3 { margin: 0 0 8px; font-size: 16.5px; font-weight: 640;
+             line-height: 1.35; }
+
+  .meta { display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+          margin-bottom: 9px; font-size: 12.5px; color: var(--muted); }
+
+  .provider {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-weight: 640; color: var(--text);
+  }
+  .dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+  .provider[data-p="ChatGPT"] .dot { background: var(--chatgpt); }
+  .provider[data-p="Claude"]  .dot { background: var(--claude); }
+  .provider[data-p="Gemini"]  .dot { background: var(--gemini); }
+
+  .badge {
+    padding: 3px 9px; border-radius: 999px; font-size: 11.5px;
+    font-weight: 650; letter-spacing: 0.015em;
+    background: var(--surface-2); border: 1px solid var(--line);
+    color: var(--muted);
+  }
+  .badge.title { color: #b9c8ff; border-color: #3a4676; }
+  .badge.content { color: #9fd8bb; border-color: #2f6350; }
+  .badge[class*="title +"] { color: #d8c1f5; border-color: #4d3f74; }
+
+  .chain { color: var(--accent); }
+
+  .snippet { margin: 0; color: #c3cad6; font-size: 14.5px; }
+  .snippet mark { background: rgba(124, 156, 255, 0.26); color: #fff;
+                  border-radius: 3px; padding: 0 2px; }
+
+  .empty { padding: 30px 10px; text-align: center; color: var(--muted); }
+
+  /* ---------------- feedback ---------------- */
+
+  .feedback {
+    margin-top: 46px; padding: 22px 20px;
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: var(--radius); text-align: center;
+  }
+  .feedback h2 { margin: 0 0 6px; font-size: 18px; }
+  .feedback p { margin: 0 0 16px; color: var(--muted); font-size: 14px; }
+
+  .choices { display: flex; gap: 9px; justify-content: center;
+             flex-wrap: wrap; }
+
+  .choices button {
+    min-width: 96px; min-height: 46px; padding: 0 20px;
+    font: inherit; font-weight: 640; font-size: 15px; cursor: pointer;
+    border-radius: 11px; border: 1px solid var(--line);
+    background: var(--surface-2); color: var(--text);
+  }
+  .choices button:hover { border-color: var(--accent); }
+  .choices button[aria-pressed="true"] {
+    background: var(--accent); color: var(--accent-ink);
+    border-color: transparent;
+  }
+
+  .thanks { margin-top: 15px; font-size: 14px; color: var(--muted); }
+  .thanks a { color: var(--accent); }
+
+  footer { margin-top: 36px; text-align: center; font-size: 13px;
+           color: var(--muted); }
+  footer a { color: var(--accent); }
+
+  .note {
+    margin-top: 26px; padding: 13px 15px; border-radius: 11px;
+    background: var(--surface); border: 1px solid var(--line);
+    font-size: 13.5px; color: var(--muted);
+  }
+
+  @media (max-width: 480px) {
+    .wrap { padding: 28px 14px 56px; }
+    .choices button { flex: 1 1 30%; min-width: 0; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .card { animation: none; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="brand">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <circle cx="12" cy="12" r="9"/><circle cx="12" cy="10" r="3"/>
+        <path d="M12 13v4" stroke-linecap="round"/>
+      </svg>
+      ContextVault
+    </div>
+    <h1>Search everything you've told any AI — from one box</h1>
+    <p class="sub">Your ChatGPT, Claude and Gemini history, in one place.
+      Nothing to install. Try it below.</p>
+  </header>
+
+  <div class="searchbox">
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <circle cx="11" cy="11" r="7"/><path d="M20 20l-3.6-3.6"/>
+    </svg>
+    <input id="q" type="search" autocomplete="off" autocapitalize="none"
+           spellcheck="false" enterkeyhint="search"
+           placeholder="Try: sourdough, launch checklist, memory leak…"
+           aria-label="Search the demo archive">
+  </div>
+
+  <div class="hint">
+    <span>Try:</span>
+    <button class="chip" type="button">gym</button>
+    <button class="chip" type="button">Q4 launch</button>
+    <button class="chip" type="button">connection pool</button>
+    <button class="chip" type="button">Japan</button>
+    <button class="chip" type="button">what to read</button>
+  </div>
+
+  <p class="status" id="status" role="status" aria-live="polite"></p>
+  <div class="results" id="results"></div>
+
+  <div class="note" id="explainer" hidden>
+    Notice that <strong>Welcome</strong> came back for a query its title never
+    mentions. That is content search — the words are in the conversation, not
+    the title, which is the one field a provider's own sidebar lets you search.
+  </div>
+
+  <section class="feedback">
+    <h2>Would you use this?</h2>
+    <p>One click. Nothing is sent anywhere.</p>
+    <div class="choices" id="choices">
+      <button type="button" data-answer="yes" aria-pressed="false">Yes</button>
+      <button type="button" data-answer="maybe" aria-pressed="false">Maybe</button>
+      <button type="button" data-answer="no" aria-pressed="false">No</button>
+    </div>
+    <p class="thanks" id="thanks" hidden></p>
+  </section>
+
+  <footer>
+    Synthetic demo data — no real conversations.
+    <a href="https://github.com/adithya1102/contextvault">Source on GitHub</a>
+  </footer>
+
+</div>
+
+<!-- The canonical copy of this data is demo/data.json. It is embedded here so
+     the page works when opened straight from disk, where fetch() of a local
+     file is blocked. tests/test_demo.js asserts the two stay identical. -->
+<script type="application/json" id="demo-data">
+{
+  "note": "Synthetic demo data. No real conversations, no personal information. Every name, date and detail here is invented for illustration.",
+  "conversations": [
+    {
+      "id": "chatgpt:demo-001",
+      "provider": "ChatGPT",
+      "title": "Welcome",
+      "date": "2024-08-23",
+      "messages": [
+        {"role": "user", "content": "I want to build muscle and start going to the gym. What should my workout plan look like for a beginner?"},
+        {"role": "assistant", "content": "Start with full body three times a week rather than a split. Squat, bench, row, overhead press, deadlift. Three sets of five, adding a little weight each session while form holds."},
+        {"role": "user", "content": "How long before I see anything change?"},
+        {"role": "assistant", "content": "Strength moves in weeks, visible size in months. The first six weeks are mostly your nervous system learning the movement, which is unglamorous but it is the part that makes everything later possible."}
+      ]
+    },
+    {
+      "id": "chatgpt:demo-002",
+      "provider": "ChatGPT",
+      "title": "Sourdough starter troubleshooting",
+      "date": "2024-09-02",
+      "messages": [
+        {"role": "user", "content": "My sourdough starter isn't rising. It's day 5 and there are no bubbles at all."},
+        {"role": "assistant", "content": "Day 5 is the famous dead zone. The early bacteria have crashed and the yeast has not taken over yet. Keep feeding on schedule and give it warmth, around 24 degrees."},
+        {"role": "user", "content": "So I should not throw it out?"},
+        {"role": "assistant", "content": "Not yet. Most starters that get discarded are discarded on day 4 or 5, about 48 hours before they would have worked."}
+      ]
+    },
+    {
+      "id": "chatgpt:demo-003",
+      "provider": "ChatGPT",
+      "title": "Feeding schedule for a mature culture",
+      "date": "2024-09-11",
+      "messages": [
+        {"role": "user", "content": "The starter is active now. How often should I feed it if I only bake at weekends?"},
+        {"role": "assistant", "content": "Keep it in the fridge and feed once a week. Take it out the night before you bake, feed it, and leave it on the counter until it doubles."},
+        {"role": "user", "content": "Does the fridge hurt it?"},
+        {"role": "assistant", "content": "No. Cold slows it rather than killing it. A neglected fridge starter will usually come back after two or three warm feedings."}
+      ]
+    },
+    {
+      "id": "claude:demo-004",
+      "provider": "Claude",
+      "title": "Project Phoenix kickoff",
+      "date": "2025-01-14",
+      "messages": [
+        {"role": "user", "content": "I am starting Project Phoenix with a small team and want to target a Q4 launch. How should I structure the first month?"},
+        {"role": "assistant", "content": "Spend the first month proving the riskiest assumption rather than building the obvious parts. Whatever kills the project if it is false, test that first."},
+        {"role": "user", "content": "The risky part is whether the import step can be made fast enough."},
+        {"role": "assistant", "content": "Then build a throwaway version of only the import step this month. If it is fast enough you have removed the risk. If it is not, you have learned that in January rather than October."}
+      ]
+    },
+    {
+      "id": "claude:demo-005",
+      "provider": "Claude",
+      "title": "What has to be true before we ship",
+      "date": "2025-03-02",
+      "messages": [
+        {"role": "user", "content": "Phoenix is on track for the Q4 launch. What should the release checklist actually contain?"},
+        {"role": "assistant", "content": "Fewer items than you think, each one a thing that would embarrass you if it were broken. A rollback you have practised, a way to see errors, and a written answer to who gets called at 2am."},
+        {"role": "user", "content": "The team is four people. Is a formal on-call rota overkill?"},
+        {"role": "assistant", "content": "The rota is overkill; the written answer is not. Four people can share a phone number, but only if everyone agrees in advance whose it is."}
+      ]
+    },
+    {
+      "id": "gemini:demo-006",
+      "provider": "Gemini",
+      "title": "Couch to 5k, week 3",
+      "date": "2025-02-08",
+      "messages": [
+        {"role": "user", "content": "I am on week three of a running plan and my shins ache after every session. Should I stop?"},
+        {"role": "assistant", "content": "Ache that fades within a day is usually load adaptation. Pain that is sharp, or that is still there the next morning, is worth resting."},
+        {"role": "user", "content": "It fades by the evening."},
+        {"role": "assistant", "content": "Then keep going but hold the volume where it is for another week instead of progressing. Shin splints almost always come from adding distance faster than the tissue remodels."}
+      ]
+    },
+    {
+      "id": "claude:demo-007",
+      "provider": "Claude",
+      "title": "Kyoto in November",
+      "date": "2025-06-19",
+      "messages": [
+        {"role": "user", "content": "Thinking about Kyoto in late November. Is that too late for the autumn colours?"},
+        {"role": "assistant", "content": "Late November is usually the peak in Kyoto, a week or two behind the mountains. The risk is crowds rather than timing."},
+        {"role": "user", "content": "How bad are the crowds?"},
+        {"role": "assistant", "content": "At the famous temples, genuinely bad by nine in the morning. The same maples are empty at seven, and the light is better."}
+      ]
+    },
+    {
+      "id": "gemini:demo-008",
+      "provider": "Gemini",
+      "title": "Rail pass or domestic flights",
+      "date": "2025-06-21",
+      "messages": [
+        {"role": "user", "content": "For two weeks in Japan, is the rail pass worth it or should I fly between cities?"},
+        {"role": "assistant", "content": "It depends almost entirely on whether you do a long leg. Tokyo to Kyoto and back roughly pays for a seven day pass on its own."},
+        {"role": "user", "content": "We are doing Tokyo, Kyoto, and Kanazawa."},
+        {"role": "assistant", "content": "That is comfortably in pass territory. Flying would win only if you added Hokkaido or Okinawa, where the distances stop favouring the train."}
+      ]
+    },
+    {
+      "id": "chatgpt:demo-009",
+      "provider": "ChatGPT",
+      "title": "Memory leak in a Node service",
+      "date": "2025-04-03",
+      "messages": [
+        {"role": "user", "content": "My Node process grows to 2GB over a few days and then gets killed. How do I find the leak?"},
+        {"role": "assistant", "content": "Take two heap snapshots an hour apart under load and compare retained size. The leak is almost always the object type that grew, not the one that is largest."},
+        {"role": "user", "content": "The biggest growth is in closures."},
+        {"role": "assistant", "content": "Look for event listeners added per request and never removed. A closure held by a listener keeps its whole scope alive, which is why the count grows in lockstep with traffic."}
+      ]
+    },
+    {
+      "id": "claude:demo-010",
+      "provider": "Claude",
+      "title": "Requests are slow under load",
+      "date": "2025-04-17",
+      "messages": [
+        {"role": "user", "content": "My API is fine with one user and terrible with fifty. Where do I even start?"},
+        {"role": "assistant", "content": "Measure before guessing. Add timing around the database call and around everything else, then look at which one grows with concurrency."},
+        {"role": "user", "content": "The database call goes from 4ms to 900ms."},
+        {"role": "assistant", "content": "That is connection pool exhaustion rather than a slow query. The query is still 4ms; the other 896 are spent waiting for a free connection."}
+      ]
+    },
+    {
+      "id": "gemini:demo-011",
+      "provider": "Gemini",
+      "title": "Something like Piranesi",
+      "date": "2025-05-30",
+      "messages": [
+        {"role": "user", "content": "I loved Piranesi. What should I read next?"},
+        {"role": "assistant", "content": "For the unreliable narrator in a strange architecture, try Gormenghast. For the same gentleness of voice, try The Once and Future King."},
+        {"role": "user", "content": "I want the strangeness more than the gentleness."},
+        {"role": "assistant", "content": "Then Roadside Picnic. It has the same quality of a person calmly describing a world whose rules they cannot explain."}
+      ]
+    },
+    {
+      "id": "claude:demo-012",
+      "provider": "Claude",
+      "title": "Non-fiction for a long flight",
+      "date": "2025-07-08",
+      "messages": [
+        {"role": "user", "content": "Fourteen hour flight. I want non-fiction that does not need a pen and paper."},
+        {"role": "assistant", "content": "Narrative non-fiction travels best. The Sixth Extinction, or Say Nothing if you want something that reads like a thriller."},
+        {"role": "user", "content": "Anything about engineering?"},
+        {"role": "assistant", "content": "To Engineer Is Human. Short chapters, each one a failure explained, which is a good shape for a flight where you keep getting interrupted."}
+      ]
+    },
+    {
+      "id": "chatgpt:demo-013",
+      "provider": "ChatGPT",
+      "title": "Meal prep for one person",
+      "date": "2025-08-12",
+      "messages": [
+        {"role": "user", "content": "I keep wasting food cooking for one. How do I meal prep without eating the same thing five days running?"},
+        {"role": "assistant", "content": "Prep components rather than meals. A grain, a roasted vegetable, a protein and two sauces recombine into five different dinners."},
+        {"role": "user", "content": "What keeps best?"},
+        {"role": "assistant", "content": "Roasted root vegetables and cooked grains hold four or five days. Dressed leaves and anything fried do not survive past the first night."}
+      ]
+    },
+    {
+      "id": "claude:demo-014",
+      "provider": "Claude",
+      "title": "Picking a database for a side project",
+      "date": "2025-09-05",
+      "messages": [
+        {"role": "user", "content": "Side project, single user, might grow. Postgres or SQLite?"},
+        {"role": "assistant", "content": "SQLite until you have a reason. One file, no server, and it handles far more load than its reputation suggests."},
+        {"role": "user", "content": "What would be a reason to move?"},
+        {"role": "assistant", "content": "Concurrent writers from more than one process, or needing the database on a different machine from the app. Neither is true for a single user tool."}
+      ]
+    },
+    {
+      "id": "gemini:demo-015",
+      "provider": "Gemini",
+      "title": "Weekend in Lisbon",
+      "date": "2025-10-01",
+      "messages": [
+        {"role": "user", "content": "Three days in Lisbon, first time. What is worth building the trip around?"},
+        {"role": "assistant", "content": "Pick a hill and a viewpoint per day rather than a list of sights. The city is best experienced as walking between two points slowly."},
+        {"role": "user", "content": "Is a day trip to Sintra worth it?"},
+        {"role": "assistant", "content": "Yes, but go early and treat it as the whole day. Sintra squeezed into an afternoon is the most common regret people report."}
+      ]
+    }
+  ],
+  "chains": [
+    {
+      "name": "Sourdough",
+      "conversations": ["chatgpt:demo-002", "chatgpt:demo-003"]
+    },
+    {
+      "name": "Project Phoenix",
+      "conversations": ["claude:demo-004", "claude:demo-005"]
+    },
+    {
+      "name": "Japan trip",
+      "conversations": ["claude:demo-007", "gemini:demo-008"]
+    }
+  ]
+}
+</script>
+
+<script src="search.js"></script>
+<script>
+(function () {
+  "use strict";
+
+  var DEBOUNCE_MS = 300;
+
+  var data = JSON.parse(document.getElementById("demo-data").textContent);
+  var conversations = data.conversations || [];
+  var chains = data.chains || [];
+
+  var input = document.getElementById("q");
+  var resultsEl = document.getElementById("results");
+  var statusEl = document.getElementById("status");
+  var explainer = document.getElementById("explainer");
+
+  function escapeHtml(text) {
+    return String(text == null ? "" : text)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+
+  /* Highlight matched terms in an already-escaped string. */
+  function highlight(escaped, terms) {
+    if (!terms.length) return escaped;
+    var pattern = new RegExp("\\b(" + terms.map(function (t) {
+      return t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    }).join("|") + ")", "gi");
+    return escaped.replace(pattern, "<mark>$1</mark>");
+  }
+
+  function render(query, results) {
+    resultsEl.textContent = "";
+
+    if (!query.trim()) {
+      statusEl.textContent = "";
+      explainer.hidden = true;
+      return;
+    }
+
+    if (!results.length) {
+      statusEl.textContent = "";
+      var none = document.createElement("p");
+      none.className = "empty";
+      none.textContent = "Nothing matched “" + query + "”. Try sourdough, "
+                       + "Phoenix, Kyoto, or Postgres.";
+      resultsEl.appendChild(none);
+      explainer.hidden = true;
+      return;
+    }
+
+    statusEl.textContent = results.length + " result"
+      + (results.length === 1 ? "" : "s") + " for “" + query + "”";
+
+    results.forEach(function (result) {
+      var card = document.createElement("div");
+      card.className = "card";
+
+      var title = document.createElement("h3");
+      title.innerHTML = highlight(escapeHtml(result.title), result.matchedTerms);
+      card.appendChild(title);
+
+      var meta = document.createElement("div");
+      meta.className = "meta";
+      meta.innerHTML =
+        '<span class="provider" data-p="' + escapeHtml(result.provider) + '">'
+        + '<span class="dot"></span>' + escapeHtml(result.provider) + '</span>'
+        + '<span>' + escapeHtml(result.date) + '</span>'
+        + '<span class="badge ' + escapeHtml(result.matchType) + '">'
+        + escapeHtml(result.matchType) + '</span>';
+
+      var chain = DemoSearch.chainFor(chains, result.id);
+      if (chain) {
+        var tag = document.createElement("span");
+        tag.className = "badge chain";
+        tag.textContent = "chain: " + chain.name;
+        meta.appendChild(tag);
+      }
+      card.appendChild(meta);
+
+      var snippet = document.createElement("p");
+      snippet.className = "snippet";
+      snippet.innerHTML = highlight(escapeHtml(result.snippet),
+                                    result.matchedTerms);
+      card.appendChild(snippet);
+
+      resultsEl.appendChild(card);
+    });
+
+    // Only claim the content-search point when it is actually on screen.
+    explainer.hidden = !results.some(function (r) {
+      return r.title === "Welcome" && r.matchType === "content";
+    });
+  }
+
+  function run() {
+    var query = input.value;
+    render(query, DemoSearch.search(conversations, query));
+  }
+
+  var timer = null;
+  input.addEventListener("input", function () {
+    clearTimeout(timer);
+    statusEl.textContent = input.value.trim() ? "Searching…" : "";
+    timer = setTimeout(run, DEBOUNCE_MS);
+  });
+
+  // Enter should not wait out the debounce.
+  input.addEventListener("keydown", function (event) {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      clearTimeout(timer);
+      run();
+      input.blur();
+    }
+  });
+
+  Array.prototype.forEach.call(document.querySelectorAll(".chip"),
+    function (chip) {
+      chip.addEventListener("click", function () {
+        input.value = chip.textContent;
+        clearTimeout(timer);
+        run();
+      });
+    });
+
+  // ---------------- feedback ----------------
+
+  var thanks = document.getElementById("thanks");
+  var buttons = document.querySelectorAll("#choices button");
+
+  var WORDING = {
+    yes: "Thanks — noted.",
+    maybe: "Thanks — noted.",
+    no: "Thanks — that is genuinely useful to know."
+  };
+
+  Array.prototype.forEach.call(buttons, function (button) {
+    button.addEventListener("click", function () {
+      var answer = button.dataset.answer;
+
+      Array.prototype.forEach.call(buttons, function (other) {
+        other.setAttribute("aria-pressed", String(other === button));
+      });
+
+      // There is no backend, and pretending otherwise would be a lie. The
+      // answer stays in this browser; the link is how it reaches anyone.
+      try {
+        localStorage.setItem("contextvault.demo.feedback",
+          JSON.stringify({ answer: answer, at: new Date().toISOString() }));
+      } catch (error) { /* private mode, or storage disabled */ }
+
+      var issue = "https://github.com/adithya1102/contextvault/issues/new"
+        + "?title=" + encodeURIComponent("Demo feedback: " + answer)
+        + "&body=" + encodeURIComponent(
+            "Answer: " + answer + "\n\nWhat made you pick that?\n");
+
+      thanks.hidden = false;
+      thanks.innerHTML = escapeHtml(WORDING[answer])
+        + ' This stayed in your browser — nothing was sent. '
+        + 'To actually tell me, <a href="' + issue
+        + '" target="_blank" rel="noopener">open an issue</a>.';
+    });
+  });
+})();
+</script>
+</body>
+</html>
