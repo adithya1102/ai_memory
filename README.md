@@ -2,7 +2,7 @@
 
 ![Python](https://img.shields.io/badge/python-3.10%2B-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
-![Tests](https://img.shields.io/badge/tests-384%20passing-brightgreen)
+![Tests](https://img.shields.io/badge/tests-399%20passing-brightgreen)
 ![Local first](https://img.shields.io/badge/data-100%25%20local-informational)
 
 **A local-first memory layer for your AI conversations. Search everything you
@@ -64,6 +64,59 @@ knows that getting stronger and building muscle are the same question.
 
 **[Read the full walkthrough →](docs/demo.md)** — three assistants, three
 exports, one library, and the contradiction none of them could see.
+
+## Live demo
+
+Run against a real archive: **21 conversations — 16 from Claude, 5 from
+ChatGPT.** No question is typed into ContextVault. It is asked in Claude
+Desktop, which reaches for `search_memory` over MCP on its own.
+
+<!-- Screenshot: Claude Desktop calling search_memory. Add image here. -->
+<!-- ![Claude Desktop calling search_memory](docs/images/live-demo.png) -->
+
+```text
+You:  Search my memory for Gusto
+
+Claude:  [calls search_memory · query: "Gusto"]
+
+         8 conversations, across both providers:
+
+           [both]     Greeting Claude                            Claude
+           [both]     Migrating session context to Claude CLI    Claude
+           [both]     Greeting                                   Claude
+           [keyword]  Syncing demo1 and demo2 folder updates     Claude
+           [keyword]  Gusto forecasting discussion               ChatGPT
+           [keyword]  Personal AGI for restaurant operations     Claude
+           [keyword]  Project discussion                         ChatGPT
+           [keyword]  Accessing carevo.co.in webpage             Claude
+
+         Three separate products share the "Gusto" name here:
+
+         Gusto Skip — the operational tool, shipping first. Live traffic,
+         occupancy and queue tracking for restaurants. It is also the data
+         source the others depend on: "surface the consumer-facing crowd
+         prediction once you've got enough live data flowing through Skip."
+
+         Gusto POS — the point-of-sale layer. Postgres via Neon, shared with
+         Skip. Risk: you said plainly, "i'm not confident enough about gusto
+         pos right now."
+
+         Gusto Predict — the newest line, a crowd-prediction product pitched
+         at five-star hotels. Named in that session and deliberately kept as
+         its own product, not folded into Skip. Risk: hotels with strong ops
+         teams "often already have this covered," so demand may not be urgent.
+```
+
+Only one of those eight conversations has "Gusto" in its title. The rest were
+found on what is *inside* them.
+
+**What it proves**
+
+| | |
+|---|---|
+| **Cross-provider search** | One query spans a Claude export and a ChatGPT export together. Neither assistant can read the other's history; ContextVault reads both. |
+| **Semantic understanding** | Results badged `both` matched on meaning as well as keyword. *"Personal AGI for restaurant operations"* never says Gusto in its title, and surfaces anyway. |
+| **MCP integration** | Nothing was pasted. Claude Desktop picked the tool, ran it, and read the results — the archive became something the assistant can consult mid-conversation. |
 
 ## Why local-first?
 
@@ -459,7 +512,7 @@ conversation chains** re-runs detection over the whole library.
 python tests/run_all.py
 ```
 
-384 checks across six suites. They run against temporary databases and never
+399 checks across six suites. They run against temporary databases and never
 touch `data/`, so running them cannot harm a real library. The two semantic
 suites skip themselves with a note if sentence-transformers is not installed.
 
