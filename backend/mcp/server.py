@@ -37,6 +37,13 @@ from backend.mcp.tools import TOOL_SCHEMAS, ToolError, call_tool  # noqa: E402
 SERVER_NAME = "contextvault"
 SERVER_VERSION = "0.3.0"
 
+# Hints the client shows the model before it picks a tool.  Both transports
+# send this: the built-in loop in ``_initialize``, the SDK via its constructor.
+SERVER_INSTRUCTIONS = (
+    "Searches the user's own archive of past AI conversations. "
+    "Start with search_memory, then read a result in full with "
+    "get_conversation.")
+
 # Echoed back to a client that does not state its own.
 DEFAULT_PROTOCOL_VERSION = "2024-11-05"
 
@@ -124,10 +131,7 @@ class Session:
                                 else DEFAULT_PROTOCOL_VERSION),
             "capabilities": {"tools": {"listChanged": False}},
             "serverInfo": {"name": SERVER_NAME, "version": SERVER_VERSION},
-            "instructions": (
-                "Searches the user's own archive of past AI conversations. "
-                "Start with search_memory, then read a result in full with "
-                "get_conversation."),
+            "instructions": SERVER_INSTRUCTIONS,
         }
 
     def _call_tool(self, params):
@@ -212,19 +216,33 @@ def serve_stdio_via_sdk(db_path=None):
     """
     try:
         from mcp.server.mcpserver import MCPServer
+        from mcp.server.mcpserver.exceptions import ToolError as SdkToolError
     except Exception:
         return False
 
     db_path = db_path or db.DB_PATH
-    session = Session(db_path)
-    server = MCPServer(name=SERVER_NAME, version=SERVER_VERSION)
+    server = MCPServer(name=SERVER_NAME, version=SERVER_VERSION,
+                       instructions=SERVER_INSTRUCTIONS)
 
     def _run(name, arguments):
+        # The SDK runs a sync tool body on an anyio worker thread, and it does
+        # not promise the same thread twice.  A sqlite3 connection may only be
+        # touched by the thread that opened it, so the connection is opened and
+        # closed right here -- one owning thread, start to finish.  Holding a
+        # long-lived connection instead means the *next* call lands on another
+        # worker and raises, and closing it from the main thread on shutdown
+        # raises there too.
+        conn = db.get_connection(db_path)
         try:
-            return json.dumps(call_tool(session.conn, name, arguments),
+            return json.dumps(call_tool(conn, name, arguments),
                               indent=2, ensure_ascii=False)
         except ToolError as exc:
-            return "Error: %s" % exc
+            # Re-raise as the SDK's ToolError so the call comes back as
+            # CallToolResult(isError=True).  Returning the message as an
+            # ordinary string reports a failure to the model as a success.
+            raise SdkToolError(str(exc)) from exc
+        finally:
+            conn.close()
 
     @server.tool(name="search_memory",
                  description=tools.TOOL_SCHEMAS_BY_NAME["search_memory"]["description"])
@@ -241,10 +259,9 @@ def serve_stdio_via_sdk(db_path=None):
     def get_conversation_chain(chain_id: int) -> str:
         return _run("get_conversation_chain", {"chain_id": chain_id})
 
-    try:
-        server.run("stdio")
-    finally:
-        session.close()
+    # No connection to close here on the way out: each call owns and closes its
+    # own, on its own thread.
+    server.run("stdio")
     return True
 
 

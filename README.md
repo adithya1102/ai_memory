@@ -230,6 +230,14 @@ The config file lives at:
 | Windows | `%APPDATA%\Claude\claude_desktop_config.json` |
 | Linux | `~/.config/Claude/claude_desktop_config.json` |
 
+Installed Claude Desktop from the Microsoft Store? That build is packaged as
+MSIX and redirects writes to its own per-package store, so the path above is
+not the file it reads. Use this one instead:
+
+```text
+%LOCALAPPDATA%\Packages\Claude_pzs8sxrjxfjjc\LocalCache\Roaming\Claude\claude_desktop_config.json
+```
+
 Restart Claude Desktop afterwards. **Settings → MCP server** in ContextVault
 prints this same JSON with your actual paths already filled in — copy it from
 there rather than editing the example.

@@ -274,6 +274,96 @@ if have_sdk:
           sdk_tools == ["get_conversation", "get_conversation_chain",
                         "search_memory"],
           sdk_tools or (sdk_proc.stderr or "")[-200:])
+
+    # The SDK shuts down as soon as stdin hits EOF, which can outrun a tool
+    # result that is still being written.  These checks need the pipe held
+    # open until each response is in hand, so they drive the process by hand
+    # rather than through stdio_session().
+    import queue
+    import threading
+
+    from backend.mcp import server as mcp_server_module
+
+    class SdkSession:
+        def __init__(self, db_path=DB):
+            self.proc = subprocess.Popen(
+                [sys.executable, os.path.join(ROOT, "mcp_server.py"),
+                 "--db", db_path],
+                stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE, text=True, bufsize=1, cwd=ROOT)
+            self.lines = queue.Queue()
+            threading.Thread(
+                target=lambda: [self.lines.put(ln) for ln in self.proc.stdout],
+                daemon=True).start()
+
+        def send(self, message):
+            self.proc.stdin.write(json.dumps(message) + "\n")
+            self.proc.stdin.flush()
+
+        def await_id(self, request_id, timeout=180):
+            deadline = time.time() + timeout
+            while time.time() < deadline:
+                try:
+                    line = self.lines.get(timeout=max(0, deadline - time.time()))
+                except queue.Empty:
+                    return None
+                try:
+                    message = json.loads(line)
+                except ValueError:
+                    continue
+                if message.get("id") == request_id:
+                    return message
+            return None
+
+        def close(self):
+            self.proc.stdin.close()
+            code = self.proc.wait(timeout=120)
+            return code, (self.proc.stderr.read() or "")
+
+    sdk = SdkSession()
+    sdk.send(INIT)
+    sdk_init = sdk.await_id(1) or {}
+    # Regression: the SDK constructor takes instructions=, and leaving it off
+    # meant Claude Desktop got no hint about which tool to reach for first.
+    check("SDK initialize carries instructions",
+          bool(sdk_init.get("result", {}).get("instructions")),
+          sdk_init.get("result", {}).get("instructions", "<missing>"))
+    check("SDK instructions match the built-in transport",
+          sdk_init.get("result", {}).get("instructions")
+          == mcp_server_module.SERVER_INSTRUCTIONS,
+          sdk_init.get("result", {}).get("instructions"))
+
+    sdk.send(INITED)
+    # Regression: a ToolError used to come back as ordinary text with no
+    # isError, so a failed call read to the model as a successful one.
+    sdk.send({"jsonrpc": "2.0", "id": 10, "method": "tools/call",
+              "params": {"name": "get_conversation",
+                         "arguments": {"conversation_id": "no-such-id"}}})
+    bad = sdk.await_id(10) or {}
+    bad_result = bad.get("result", {})
+    check("SDK failed tool call sets isError", bad_result.get("isError") is True,
+          bad_result or bad)
+    check("SDK error text names the problem",
+          "no-such-id" in json.dumps(bad_result.get("content", "")),
+          str(bad_result.get("content"))[:120])
+
+    # Regression: the connection used to be opened on one worker thread and
+    # reused from the next, which raised before this second call could answer.
+    sdk.send({"jsonrpc": "2.0", "id": 11, "method": "tools/call",
+              "params": {"name": "get_conversation",
+                         "arguments": {"conversation_id": CONV_ID}}})
+    second = sdk.await_id(11) or {}
+    check("SDK serves a second call on another worker thread",
+          second.get("result", {}).get("isError") is not True,
+          str(second.get("result", {}).get("content"))[:120])
+
+    # Regression: session.close() ran on the main thread and blew up with
+    # sqlite3.ProgrammingError, so a clean shutdown exited non-zero.
+    sdk_code, sdk_stderr = sdk.close()
+    check("SDK shutdown exits 0", sdk_code == 0, sdk_code)
+    check("SDK shutdown raises no sqlite3.ProgrammingError",
+          "ProgrammingError" not in sdk_stderr,
+          [ln for ln in sdk_stderr.splitlines() if "Error" in ln][-2:])
 else:
     print("  (mcp SDK not installed -- built-in transport only)")
 
