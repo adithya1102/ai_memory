@@ -1,4 +1,4 @@
-"""Flask application for the AI Memory desktop UI."""
+"""Flask application for the ContextVault desktop UI."""
 
 import os
 import re

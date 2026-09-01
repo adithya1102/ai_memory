@@ -1,4 +1,4 @@
-"""Run every AI Memory test suite and report the totals.
+"""Run every ContextVault test suite and report the totals.
 
     python tests/run_all.py
 

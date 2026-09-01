@@ -48,7 +48,7 @@ def show_results(conn, query, limit=5):
 
 
 def main():
-    work = tempfile.mkdtemp(prefix="aimem-demo-")
+    work = tempfile.mkdtemp(prefix="contextvault-demo-")
     db_path = os.path.join(work, "demo.db")
     conn = db.init_db(db_path)
 

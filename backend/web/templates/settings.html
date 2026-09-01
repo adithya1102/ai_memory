@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Settings — AI Memory{% endblock %}
+{% block title %}Settings — ContextVault{% endblock %}
 
 {% block content %}
   <h1>Settings</h1>
@@ -90,7 +90,7 @@
     restart Claude Desktop.</p>
 <pre><code>{
   "mcpServers": {
-    "ai-memory": {
+    "contextvault": {
       "command": {{ mcp.python | tojson }},
       "args": [{{ mcp.launcher | tojson }}]
     }

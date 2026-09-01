@@ -1,6 +1,6 @@
 # Roadmap
 
-Where AI Memory is going. Dates are deliberately absent — this is a
+Where ContextVault is going. Dates are deliberately absent — this is a
 spare-time project and guessing them would just be wrong later.
 
 Anything marked **shipped** is working today and covered by the test suite.

@@ -1,4 +1,4 @@
-"""MCP server for AI Memory.
+"""MCP server for ContextVault.
 
 Exposes three read-only tools -- ``search_memory``, ``get_conversation`` and
 ``get_conversation_chain`` -- over the Model Context Protocol, so an assistant
@@ -34,7 +34,7 @@ from backend.core import database as db          # noqa: E402
 from backend.mcp import tools                    # noqa: E402
 from backend.mcp.tools import TOOL_SCHEMAS, ToolError, call_tool  # noqa: E402
 
-SERVER_NAME = "ai-memory"
+SERVER_NAME = "contextvault"
 SERVER_VERSION = "0.3.0"
 
 # Echoed back to a client that does not state its own.
@@ -351,9 +351,9 @@ def main(argv=None):
     import argparse
 
     parser = argparse.ArgumentParser(
-        description="MCP server for AI Memory (stdio by default).")
+        description="MCP server for ContextVault (stdio by default).")
     parser.add_argument("--db", default=db.DB_PATH,
-                        help="path to the AI Memory SQLite database")
+                        help="path to the ContextVault SQLite database")
     parser.add_argument("--transport", choices=("stdio", "tcp"), default="stdio")
     parser.add_argument("--port", type=int, default=DEFAULT_TCP_PORT,
                         help="port for --transport tcp")
@@ -368,7 +368,7 @@ def main(argv=None):
 
     if args.transport == "tcp":
         status = BACKGROUND.start(args.db, port=args.port)
-        print("AI Memory MCP server on tcp://%s:%d (Ctrl+C to stop)"
+        print("ContextVault MCP server on tcp://%s:%d (Ctrl+C to stop)"
               % (status["host"], status["port"]), file=sys.stderr)
         try:
             threading.Event().wait()

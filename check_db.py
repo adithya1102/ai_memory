@@ -1,6 +1,6 @@
 import sqlite3
 
-conn = sqlite3.connect('data/ai_memory.db')
+conn = sqlite3.connect('data/contextvault.db')
 conn.row_factory = sqlite3.Row
 
 print("=== Conversations ===")

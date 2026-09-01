@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Launcher for the AI Memory MCP server.
+"""Launcher for the ContextVault MCP server.
 
 This is the file to point an MCP client at.  Claude Desktop, Cursor and
 friends spawn it as a subprocess and speak JSON-RPC over stdin/stdout:
 
-    python /path/to/ai_memory/mcp_server.py
+    python /path/to/contextvault/mcp_server.py
 
 See the "Connecting Claude Desktop" section of README.md for the config JSON.
 

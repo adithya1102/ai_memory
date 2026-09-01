@@ -1,6 +1,6 @@
 ---
 name: Feature request
-about: Suggest something AI Memory should do
+about: Suggest something ContextVault should do
 title: ''
 labels: enhancement
 assignees: ''

@@ -1,4 +1,4 @@
-"""AI Memory desktop entry point.
+"""ContextVault desktop entry point.
 
 Starts the Flask server on a background thread and opens a pywebview window
 pointing at it.  Use --no-window to run as a plain local web app instead.
@@ -101,7 +101,7 @@ def start_mcp_if_enabled(db_path):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="AI Memory")
+    parser = argparse.ArgumentParser(description="ContextVault")
     parser.add_argument("--no-window", action="store_true",
                         help="run the web server only, without a desktop window")
     parser.add_argument("--port", type=int, default=5000)
@@ -123,7 +123,7 @@ def main():
                 use_reloader=False)
 
     if args.no_window:
-        print("AI Memory running at %s  (Ctrl+C to stop)" % url)
+        print("ContextVault running at %s  (Ctrl+C to stop)" % url)
         serve()
         return
 
@@ -132,7 +132,7 @@ def main():
     except ImportError:
         print("pywebview is not installed - falling back to the browser.\n"
               "  pip install -r requirements.txt\n")
-        print("AI Memory running at %s  (Ctrl+C to stop)" % url)
+        print("ContextVault running at %s  (Ctrl+C to stop)" % url)
         serve()
         return
 
@@ -141,7 +141,7 @@ def main():
         print("The server did not start in time; try --no-window to see errors.")
         return
 
-    webview.create_window("AI Memory", url, width=1024, height=768,
+    webview.create_window("ContextVault", url, width=1024, height=768,
                           min_size=(640, 480))
     webview.start()
 

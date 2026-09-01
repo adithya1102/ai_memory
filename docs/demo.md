@@ -1,4 +1,4 @@
-# AI Memory — a walkthrough
+# ContextVault — a walkthrough
 
 This is the canonical demo. It uses three small exports in `docs/demo_data/`,
 each in its provider's real format, and every block of output below was
@@ -60,7 +60,7 @@ companies' partial memories of you, none of which you can search properly.
 Start the app:
 
 ```bash
-cd ai_memory
+cd contextvault
 python backend/main.py --no-window
 ```
 
@@ -191,9 +191,9 @@ with your real paths already filled in:
 ```json
 {
   "mcpServers": {
-    "ai-memory": {
+    "contextvault": {
       "command": "python",
-      "args": ["/absolute/path/to/ai_memory/mcp_server.py"]
+      "args": ["/absolute/path/to/contextvault/mcp_server.py"]
     }
   }
 }

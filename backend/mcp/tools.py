@@ -1,4 +1,4 @@
-"""The three tools AI Memory exposes over MCP.
+"""The three tools ContextVault exposes over MCP.
 
 Transport-free on purpose: this module knows nothing about JSON-RPC, stdio or
 the MCP SDK, so the same implementations serve every transport in server.py

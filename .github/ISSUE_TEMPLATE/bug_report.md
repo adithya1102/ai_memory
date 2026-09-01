@@ -7,7 +7,7 @@ assignees: ''
 ---
 
 <!--
-Before anything else: AI Memory holds private conversations. Please redact
+Before anything else: ContextVault holds private conversations. Please redact
 anything personal from logs, titles and sample files before posting.
 -->
 
@@ -44,7 +44,7 @@ is the part that matters; the words are not.
 
 - **OS:**  <!-- e.g. Windows 11, macOS 14.2, Ubuntu 24.04 -->
 - **Python:**  <!-- python --version -->
-- **AI Memory version / commit:**  <!-- git rev-parse --short HEAD -->
+- **ContextVault version / commit:**  <!-- git rev-parse --short HEAD -->
 - **Installed semantic extras?**  <!-- yes / no — pip show sentence-transformers sqlite-vec -->
 - **Provider and export date:**  <!-- e.g. ChatGPT, exported 2026-08-14 -->
 

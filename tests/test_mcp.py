@@ -24,7 +24,7 @@ from backend.mcp import tools as mcp_tools
 from backend.mcp.tools import ToolError
 
 EXPORT = os.path.join(ROOT, "dummy_export.json.json")
-WORK = tempfile.mkdtemp(prefix="aimem-mcp-")
+WORK = tempfile.mkdtemp(prefix="contextvault-mcp-")
 DB = os.path.join(WORK, "mcp.db")
 
 fails = []
@@ -197,7 +197,7 @@ check("initialize returns protocolVersion",
       init.get("protocolVersion") == "2024-11-05", init.get("protocolVersion"))
 check("initialize advertises tools capability", "tools" in init.get("capabilities", {}))
 check("initialize names the server",
-      init.get("serverInfo", {}).get("name") == "ai-memory", init.get("serverInfo"))
+      init.get("serverInfo", {}).get("name") == "contextvault", init.get("serverInfo"))
 
 listed = by_id.get(2, {}).get("result", {}).get("tools", [])
 names = sorted(t["name"] for t in listed)
@@ -304,7 +304,7 @@ try:
             buf += chunk
     got = [json.loads(l) for l in buf.decode().splitlines() if l.strip()]
     check("TCP transport answered initialize",
-          got and got[0].get("result", {}).get("serverInfo", {}).get("name") == "ai-memory",
+          got and got[0].get("result", {}).get("serverInfo", {}).get("name") == "contextvault",
           got[:1])
     check("TCP transport ran a tool",
           len(got) > 1 and json.loads(

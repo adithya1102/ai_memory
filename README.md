@@ -1,8 +1,8 @@
-# AI Memory
+# ContextVault
 
 ![Python](https://img.shields.io/badge/python-3.10%2B-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
-![Tests](https://img.shields.io/badge/tests-374%20passing-brightgreen)
+![Tests](https://img.shields.io/badge/tests-384%20passing-brightgreen)
 ![Local first](https://img.shields.io/badge/data-100%25%20local-informational)
 
 **A local-first memory layer for your AI conversations. Search everything you
@@ -24,7 +24,7 @@ the least information.
 
 ## The solution
 
-AI Memory imports your exported chat history into a single SQLite file on your
+ContextVault imports your exported chat history into a single SQLite file on your
 own machine and makes all of it searchable.
 
 Two engines run over it at once. **Keyword search** finds the words you
@@ -72,7 +72,7 @@ salary negotiations, code from work, relationship advice, half-formed business
 ideas, and things you would not say out loud. It is one of the most revealing
 datasets you will ever generate.
 
-So AI Memory is built so that uploading it is not possible, rather than merely
+So ContextVault is built so that uploading it is not possible, rather than merely
 discouraged:
 
 - **No network calls.** The app talks to `127.0.0.1` and nothing else. There
@@ -82,7 +82,7 @@ discouraged:
   request the project ever makes is a one-time ~90 MB model download from
   Hugging Face, and you can see exactly where it happens
   (`backend/core/embeddings.py`).
-- **One file you own.** Everything lives in `data/ai_memory.db`. Back it up,
+- **One file you own.** Everything lives in `data/contextvault.db`. Back it up,
   move it between machines, inspect it with any SQLite browser, or delete it.
   No export step, no proprietary format, no lock-in.
 - **No telemetry.** None. Not opt-in, not anonymised, not planned
@@ -179,7 +179,7 @@ keyword-only results.
 
 ## Connecting Claude Desktop (MCP)
 
-AI Memory ships an [MCP](https://modelcontextprotocol.io) server, so an
+ContextVault ships an [MCP](https://modelcontextprotocol.io) server, so an
 assistant can search your archive for you — *"didn't we work out a deployment
 strategy a few months ago?"* — instead of you scrolling for it.
 
@@ -201,9 +201,9 @@ Claude Desktop's config, using absolute paths:
 ```json
 {
   "mcpServers": {
-    "ai-memory": {
+    "contextvault": {
       "command": "python",
-      "args": ["C:\\path\\to\\ai_memory\\mcp_server.py"]
+      "args": ["C:\\path\\to\\contextvault\\mcp_server.py"]
     }
   }
 }
@@ -214,9 +214,9 @@ On macOS or Linux the paths are ordinary POSIX ones:
 ```json
 {
   "mcpServers": {
-    "ai-memory": {
+    "contextvault": {
       "command": "python3",
-      "args": ["/Users/you/ai_memory/mcp_server.py"]
+      "args": ["/Users/you/contextvault/mcp_server.py"]
     }
   }
 }
@@ -230,7 +230,7 @@ The config file lives at:
 | Windows | `%APPDATA%\Claude\claude_desktop_config.json` |
 | Linux | `~/.config/Claude/claude_desktop_config.json` |
 
-Restart Claude Desktop afterwards. **Settings → MCP server** in AI Memory
+Restart Claude Desktop afterwards. **Settings → MCP server** in ContextVault
 prints this same JSON with your actual paths already filled in — copy it from
 there rather than editing the example.
 
@@ -254,7 +254,7 @@ instead of stdio.
 
 - **stdio** is the one Claude Desktop uses. The client launches
   `mcp_server.py` as a subprocess itself, so **nothing needs to be running in
-  AI Memory** for it to work — not even the desktop app.
+  ContextVault** for it to work — not even the desktop app.
 - **TCP** is what the *Start MCP server* toggle in Settings starts: the same
   server on `127.0.0.1`, for clients that connect to a socket and for poking
   at it by hand. It is off by default and never binds anything but loopback.
@@ -326,7 +326,7 @@ file came from.
 ## How it works
 
 ```
-ai_memory/
+contextvault/
 ├── backend/
 │   ├── core/
 │   │   ├── database.py   schema, FTS5 table + sync triggers, queries
@@ -451,7 +451,7 @@ conversation chains** re-runs detection over the whole library.
 python tests/run_all.py
 ```
 
-374 checks across six suites. They run against temporary databases and never
+384 checks across six suites. They run against temporary databases and never
 touch `data/`, so running them cannot harm a real library. The two semantic
 suites skip themselves with a note if sentence-transformers is not installed.
 

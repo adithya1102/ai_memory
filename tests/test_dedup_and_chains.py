@@ -15,8 +15,8 @@ OPENER = urllib.request.build_opener(
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 EXPORT = os.path.join(ROOT, "dummy_export.json.json")
-WORK = tempfile.mkdtemp(prefix="aimem-test-")
-DB = os.path.join(WORK, "ai_memory.db")
+WORK = tempfile.mkdtemp(prefix="contextvault-test-")
+DB = os.path.join(WORK, "contextvault.db")
 PORT = 5123
 BASE = "http://127.0.0.1:%d" % PORT
 

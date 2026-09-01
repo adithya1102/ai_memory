@@ -12,7 +12,7 @@ from backend.core.importer import detect_provider, import_file
 from backend.core.search import hybrid_search, search_conversations
 
 DEMO = os.path.join(ROOT, "docs", "demo_data")
-WORK = tempfile.mkdtemp(prefix="aimem-providers-")
+WORK = tempfile.mkdtemp(prefix="contextvault-providers-")
 
 fails = []
 

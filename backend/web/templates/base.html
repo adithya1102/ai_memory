@@ -3,13 +3,13 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block title %}AI Memory{% endblock %}</title>
+  <title>{% block title %}ContextVault{% endblock %}</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
   <header>
     <div class="wrap">
-      <a class="brand" href="{{ url_for('index') }}">AI <span>Memory</span></a>
+      <a class="brand" href="{{ url_for('index') }}">Context<span>Vault</span></a>
       <nav>
         <a href="{{ url_for('index') }}" {% if request.endpoint == 'index' %}class="active"{% endif %}>Home</a>
         <a href="{{ url_for('chains') }}" {% if request.endpoint in ('chains', 'chain') %}class="active"{% endif %}>Chains</a>

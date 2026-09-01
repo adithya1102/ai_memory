@@ -1,4 +1,4 @@
-# Contributing to AI Memory
+# Contributing to ContextVault
 
 Thanks for looking. This is a small, deliberately dependency-light project;
 the bar for a change is that it works, it is tested, and someone reading the
@@ -10,8 +10,8 @@ architecture was built for it, and there is a worked example below.
 ## Getting set up
 
 ```bash
-git clone https://github.com/adithya1102/ai_memory.git
-cd ai_memory
+git clone https://github.com/adithya1102/contextvault.git
+cd contextvault
 pip install -r requirements.txt
 python backend/main.py
 ```
@@ -235,7 +235,7 @@ python tests/run_all.py           # everything
 python tests/test_core.py         # one suite
 ```
 
-374 checks across six suites. All of them use temporary databases and never
+384 checks across six suites. All of them use temporary databases and never
 touch `data/`, so you cannot lose a real library by running them.
 
 | Suite | Covers |

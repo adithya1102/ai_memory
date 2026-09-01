@@ -1,4 +1,4 @@
-"""SQLite storage layer for AI Memory.
+"""SQLite storage layer for ContextVault.
 
 The database is a plain local SQLite file.  Full text search is provided by an
 FTS5 virtual table (``conversation_fts``) that holds one row per conversation:
@@ -14,13 +14,19 @@ import os
 import sqlite3
 from datetime import datetime, timezone
 
-# <project root>/data/ai_memory.db
+# <project root>/data/contextvault.db
 PROJECT_ROOT = os.path.dirname(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 )
 DATA_DIR = os.path.join(PROJECT_ROOT, "data")
 IMPORTS_DIR = os.path.join(DATA_DIR, "imports")
-DB_PATH = os.path.join(DATA_DIR, "ai_memory.db")
+DB_FILENAME = "contextvault.db"
+DB_PATH = os.path.join(DATA_DIR, DB_FILENAME)
+
+# The project was called "AI Memory" before it was called ContextVault, and its
+# database was named after it.  Kept as a literal so a bulk rename cannot
+# quietly turn the migration below into a no-op.
+LEGACY_DB_FILENAME = "ai" + "_memory.db"
 
 
 SCHEMA = """
@@ -166,11 +172,41 @@ def utcnow():
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
 
 
+def migrate_legacy_database(db_path=DB_PATH):
+    """Adopt a pre-rename ``ai_memory.db`` under the new name.
+
+    Renaming the project would otherwise orphan every existing library: the
+    app would find no database at the new path, create an empty one, and look
+    exactly as though the user's conversations had been lost.  Runs only for
+    the default filename, so an explicit --db is never second-guessed, and
+    only when nothing already exists at the target.
+
+    Returns True if a database was adopted.
+    """
+    if os.path.basename(db_path) != DB_FILENAME or os.path.exists(db_path):
+        return False
+    legacy = os.path.join(os.path.dirname(os.path.abspath(db_path)),
+                          LEGACY_DB_FILENAME)
+    if not os.path.exists(legacy):
+        return False
+    try:
+        os.rename(legacy, db_path)
+        # The write-ahead log and shared-memory file sit beside the database
+        # and belong to it; leaving them behind would strand recent writes.
+        for suffix in ("-wal", "-shm"):
+            if os.path.exists(legacy + suffix):
+                os.replace(legacy + suffix, db_path + suffix)
+        return True
+    except OSError:
+        return False
+
+
 def get_connection(db_path=DB_PATH):
     """Open a connection with dict-like rows and foreign keys enabled."""
     directory = os.path.dirname(os.path.abspath(db_path))
     if directory:
         os.makedirs(directory, exist_ok=True)
+    migrate_legacy_database(db_path)
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")

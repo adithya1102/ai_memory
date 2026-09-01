@@ -131,6 +131,49 @@ check("stale text gone from index", ids("elision") == [], ids("elision"))
 check("message count unchanged after update", len(msgs("aaa-111")) == 4, len(msgs("aaa-111")))
 conn.close()
 
+print("\n== legacy database adoption (AI Memory -> ContextVault) ==")
+_work = tempfile.mkdtemp()
+_legacy = os.path.join(_work, "ai_memory.db")
+_target = os.path.join(_work, db.DB_FILENAME)
+check("new filename is contextvault.db",
+      db.DB_FILENAME == "contextvault.db", db.DB_FILENAME)
+check("legacy filename constant is intact",
+      db.LEGACY_DB_FILENAME == "ai_memory.db", db.LEGACY_DB_FILENAME)
+
+_c = db.init_db(_legacy)
+_pid = db.insert_provider(_c, "chatgpt", "ChatGPT")
+db.insert_conversation(_c, "chatgpt:legacy", _pid, "From the old name",
+                       content_hash="legacy-hash")
+db.insert_message(_c, "chatgpt:legacy", "user", "carried over", message_order=0)
+_c.commit()
+_c.close()
+
+_c = db.get_connection(_target)
+check("legacy database adopted at the new path", os.path.exists(_target))
+check("old file no longer left behind", not os.path.exists(_legacy))
+check("conversations survived the rename",
+      _c.execute("SELECT title FROM conversations").fetchone()[0]
+      == "From the old name")
+check("messages survived the rename",
+      _c.execute("SELECT COUNT(*) FROM messages").fetchone()[0] == 1)
+check("search index survived the rename",
+      [r["conversation_id"] for r in search_conversations(_c, "carried")]
+      == ["chatgpt:legacy"])
+_c.close()
+
+_c = db.get_connection(_target)
+check("adoption is idempotent",
+      _c.execute("SELECT COUNT(*) FROM conversations").fetchone()[0] == 1)
+_c.close()
+
+# An explicit --db must never adopt a stray ai_memory.db sitting beside it.
+_decoy = os.path.join(_work, "ai_memory.db")
+open(_decoy, "wb").write(b"not a database")
+_explicit = os.path.join(_work, "explicit.db")
+db.get_connection(_explicit).close()
+check("an explicit --db path is never hijacked", os.path.exists(_decoy))
+check("...and the explicit database was still created", os.path.exists(_explicit))
+
 print("\n== flask routes ==")
 app = create_app(db_path=DB, imports_dir=os.path.dirname(DB))
 c = app.test_client()
