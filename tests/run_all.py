@@ -25,6 +25,7 @@ SUITES = [
     ("test_preload.py", "background model loading and fallback", True),
     ("test_mcp.py", "MCP tools, stdio protocol, TCP transport", True),
     ("test_api.py", "Bridge REST API, ingest, memories, auth", True),
+    ("test_context.py", "/context block, PWA page, extension assets", True),
 ]
 
 NOISE = re.compile(r"it/s\]|HF Hub|Loading weights|^\[transformers\]")

@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+
+{% block title %}/context — ContextVault{% endblock %}
+
+{% block content %}
+  <h1 class="context-title">/context</h1>
+  <p class="meta">The browser extension does this automatically on desktop.
+    On a phone, ask here, then copy the block and paste it into whichever
+    assistant you are using.</p>
+
+  <form class="searchbar" action="{{ url_for('context_page') }}" method="get">
+    <input type="search" name="q" value="{{ query or '' }}"
+           placeholder="What do you want context on?"
+           {% if not query %}autofocus{% endif %}>
+    <button type="submit">Retrieve</button>
+  </form>
+
+  {% if query %}
+    {% if results %}
+      <div class="context-actions">
+        <button type="button" class="copy-button" id="copy-block"
+                data-label="Copy for pasting">Copy for pasting</button>
+        <span class="meta">{{ results|length }} conversation{{ '' if results|length == 1 else 's' }}</span>
+      </div>
+
+      <textarea id="context-block" class="context-block" readonly
+                rows="18">{{ block }}</textarea>
+
+      <h2>What was found</h2>
+      {% for r in results %}
+        <a class="card" href="{{ url_for('conversation', conversation_id=r.conversation_id) }}">
+          <strong>{{ r.title }}</strong>
+          <span class="badge {{ r.match_type }}">{{ r.match_type }}</span>
+          <span class="meta">{{ r.provider }} · {{ r.date | datefmt }}</span>
+          <p>{{ r.snippet | preview }}</p>
+        </a>
+      {% endfor %}
+    {% else %}
+      <p class="empty">Nothing in the archive matched
+        <strong>{{ query }}</strong>.</p>
+    {% endif %}
+  {% endif %}
+
+  <script>
+    (function () {
+      var button = document.getElementById("copy-block");
+      var block = document.getElementById("context-block");
+      if (!button || !block) return;
+
+      button.addEventListener("click", function () {
+        var done = function (ok) {
+          button.textContent = ok ? "Copied" : "Press Ctrl+C";
+          setTimeout(function () {
+            button.textContent = button.dataset.label;
+          }, 2000);
+        };
+        // Select regardless: on iOS Safari the clipboard API is unavailable
+        // outside a few contexts, and a selected textarea is something the
+        // user can always copy by hand.
+        block.focus();
+        block.select();
+        block.setSelectionRange(0, block.value.length);
+
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(block.value)
+            .then(function () { done(true); })
+            .catch(function () { done(false); });
+        } else {
+          var ok = false;
+          try { ok = document.execCommand("copy"); } catch (e) { ok = false; }
+          done(ok);
+        }
+      });
+    })();
+  </script>
+{% endblock %}

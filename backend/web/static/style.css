@@ -249,3 +249,49 @@ pre {
 }
 pre code { word-break: normal; }
 h3 { font-size: 14px; margin: 22px 0 8px; }
+
+/* ---------------------------------------------------------------- */
+/* The /context page                                                 */
+/* ---------------------------------------------------------------- */
+
+.context-title {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  letter-spacing: -0.02em;
+}
+
+.context-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 22px 0 10px;
+  flex-wrap: wrap;
+}
+
+.copy-button {
+  padding: 9px 16px;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  border-radius: 8px;
+  border: 1px solid var(--line, #333);
+  background: var(--accent, #7c9cff);
+  color: #14161a;
+}
+
+.copy-button:active { transform: translateY(1px); }
+
+/* Readonly, but selectable and scrollable: on a phone this is the thing the
+   user is actually here to copy. */
+.context-block {
+  width: 100%;
+  padding: 14px 16px;
+  font: 13px/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  color: inherit;
+  background: rgba(127, 127, 127, 0.09);
+  border: 1px solid var(--line, #333);
+  border-radius: 10px;
+  resize: vertical;
+  white-space: pre;
+  overflow-wrap: normal;
+  overflow-x: auto;
+}

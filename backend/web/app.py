@@ -19,6 +19,7 @@ from werkzeug.utils import secure_filename
 
 from backend.core import database as db
 from backend.core import embeddings
+from backend.core.context_block import format_context_block
 from backend.core.importer import detect_chains, import_file
 from backend.core.search import SEMANTIC_ENABLED_KEY, hybrid_search
 from backend.mcp import tools as mcp_tools
@@ -86,6 +87,42 @@ def create_app(db_path=db.DB_PATH, imports_dir=db.IMPORTS_DIR):
             chains=db.get_chains(conn)[:5],
             stats=db.get_stats(conn),
         )
+
+    @app.route("/context")
+    def context_page():
+        """The /context command for phones, where no extension can run.
+
+        Same retrieval the extension performs, same block it builds; the user
+        copies it across by hand instead of having it typed into a composer.
+        """
+        conn = connection()
+        query = (request.args.get("q") or "").strip()
+        results, block = [], ""
+        if query:
+            results = mcp_tools.search_memory(conn, query, limit=5)["results"]
+            block = format_context_block(query, results)
+        return render_template("context.html", query=query, results=results,
+                               block=block)
+
+    @app.route("/manifest.webmanifest")
+    def web_manifest():
+        """Makes the /context page installable to a phone's home screen."""
+        return jsonify({
+            "name": "ContextVault",
+            "short_name": "ContextVault",
+            "description": "Your own AI conversation history, searchable.",
+            "start_url": "/context",
+            "scope": "/",
+            "display": "standalone",
+            "background_color": "#14161a",
+            "theme_color": "#14161a",
+            "icons": [{
+                "src": url_for("static", filename="icon.svg"),
+                "sizes": "any",
+                "type": "image/svg+xml",
+                "purpose": "any maskable",
+            }],
+        })
 
     @app.route("/search")
     def search():
