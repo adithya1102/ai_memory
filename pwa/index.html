@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ContextVault</title>
+<meta name="description" content="Search everything you have ever asked an AI, from your phone.">
+<link rel="manifest" href="/pwa/manifest.json">
+<link rel="stylesheet" href="/pwa/style.css">
+<link rel="icon" href="/static/icon.svg">
+<link rel="apple-touch-icon" href="/static/icon.svg">
+<meta name="theme-color" content="#101215">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="ContextVault">
+</head>
+<body>
+
+<div id="offline-bar" class="offline-bar" hidden>
+  Offline — showing what was cached.
+</div>
+
+<header class="appbar">
+  <button class="icon-button" id="back" type="button" aria-label="Back" hidden>
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 19l-7-7 7-7"/></svg>
+  </button>
+  <h1 id="title">ContextVault</h1>
+  <button class="icon-button" id="open-settings" type="button" aria-label="Settings">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></svg>
+  </button>
+</header>
+
+<!-- ================= Search ================= -->
+<main id="view-search" class="view">
+  <form class="searchbar" id="search-form" role="search">
+    <input id="q" type="search" name="q" placeholder="Search everything you've asked…"
+           autocomplete="off" autocapitalize="none" spellcheck="false"
+           enterkeyhint="search" aria-label="Search your conversations">
+    <button type="submit" class="primary" id="search-button">Search</button>
+  </form>
+
+  <p class="status" id="search-status" role="status" aria-live="polite"></p>
+  <div id="results" class="list"></div>
+</main>
+
+<!-- ============== Conversation ============== -->
+<main id="view-conversation" class="view" hidden>
+  <div class="convo-head">
+    <h2 id="convo-title">…</h2>
+    <p class="meta" id="convo-meta"></p>
+    <div class="actions">
+      <button type="button" class="primary" id="copy-context">Copy context</button>
+      <button type="button" class="secondary" id="save-memory">Save memory</button>
+    </div>
+  </div>
+  <div id="messages" class="messages"></div>
+</main>
+
+<!-- ================ Memories ================ -->
+<main id="view-memories" class="view" hidden>
+  <form class="memory-form" id="memory-form">
+    <label class="sr-only" for="memory-text">New memory</label>
+    <textarea id="memory-text" rows="3" placeholder="A fact worth keeping…"></textarea>
+    <div class="actions">
+      <input id="memory-tags" type="text" placeholder="tags, comma separated"
+             autocapitalize="none" aria-label="Tags">
+      <button type="submit" class="primary">Save</button>
+    </div>
+  </form>
+  <p class="status" id="memories-status" role="status" aria-live="polite"></p>
+  <div id="memories" class="list"></div>
+</main>
+
+<!-- ================ Settings ================ -->
+<main id="view-settings" class="view" hidden>
+  <label for="api-key">API key
+    <span class="hint">Only if you switched auth on in Settings → Bridge API.</span>
+  </label>
+  <input id="api-key" type="password" placeholder="(none)" autocomplete="off">
+
+  <label for="limit">Results per search</label>
+  <input id="limit" type="number" min="1" max="20" value="10">
+
+  <div class="actions">
+    <button type="button" class="primary" id="save-settings">Save</button>
+    <button type="button" class="secondary" id="check-health">Test connection</button>
+  </div>
+  <p class="status" id="settings-status" role="status" aria-live="polite"></p>
+
+  <div class="about">
+    <p>Everything here is served by ContextVault on your own machine. No data
+      leaves it unless you copy something out.</p>
+    <p class="meta" id="version"></p>
+  </div>
+</main>
+
+<nav class="tabbar">
+  <button type="button" class="tab active" data-view="search">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+    <span>Search</span>
+  </button>
+  <button type="button" class="tab" data-view="memories">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h11l3 3v13H5z"/><path d="M8 9h8M8 13h8M8 17h5"/></svg>
+    <span>Memories</span>
+  </button>
+</nav>
+
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+<script src="/pwa/lib/context.js"></script>
+<script src="/pwa/app.js"></script>
+</body>
+</html>

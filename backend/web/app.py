@@ -14,7 +14,7 @@ if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
 from flask import (Flask, abort, flash, g, jsonify, redirect, render_template,
-                   request, url_for)
+                   request, send_from_directory, url_for)
 from werkzeug.utils import secure_filename
 
 from backend.core import database as db
@@ -104,25 +104,60 @@ def create_app(db_path=db.DB_PATH, imports_dir=db.IMPORTS_DIR):
         return render_template("context.html", query=query, results=results,
                                block=block)
 
+    # ------------------------------------------------------------------
+    # The mobile PWA
+    #
+    # Served from this app rather than a separate host so that every call it
+    # makes to /api/v1 is same-origin.  The Bridge API sends no permissive
+    # CORS headers on purpose -- it holds the whole archive -- and being
+    # same-origin means it never needs to.
+    # ------------------------------------------------------------------
+    PWA_DIR = os.path.join(PROJECT_ROOT, "pwa")
+
+    @app.route("/app")
+    def pwa_index():
+        return send_from_directory(PWA_DIR, "index.html")
+
+    @app.route("/pwa/lib/context.js")
+    def pwa_context_lib():
+        """The extension's formatter, shared rather than reimplemented.
+
+        One copy of this file means the phone, the extension and the
+        server-rendered /context page cannot drift into producing different
+        context blocks.
+        """
+        return send_from_directory(
+            os.path.join(PROJECT_ROOT, "extension", "lib"), "context.js",
+            mimetype="text/javascript")
+
+    @app.route("/pwa/<path:filename>")
+    def pwa_asset(filename):
+        return send_from_directory(PWA_DIR, filename)
+
+    @app.route("/sw.js")
+    def service_worker():
+        """Served from the root deliberately.
+
+        A worker's scope defaults to the directory it is served from, and this
+        one has to intercept /api/v1 as well as /pwa, so it cannot live under
+        /pwa/ without a Service-Worker-Allowed header dance.
+        """
+        response = send_from_directory(PWA_DIR, "sw.js",
+                                       mimetype="text/javascript")
+        response.headers["Cache-Control"] = "no-cache"
+        response.headers["Service-Worker-Allowed"] = "/"
+        return response
+
     @app.route("/manifest.webmanifest")
     def web_manifest():
-        """Makes the /context page installable to a phone's home screen."""
-        return jsonify({
-            "name": "ContextVault",
-            "short_name": "ContextVault",
-            "description": "Your own AI conversation history, searchable.",
-            "start_url": "/context",
-            "scope": "/",
-            "display": "standalone",
-            "background_color": "#14161a",
-            "theme_color": "#14161a",
-            "icons": [{
-                "src": url_for("static", filename="icon.svg"),
-                "sizes": "any",
-                "type": "image/svg+xml",
-                "purpose": "any maskable",
-            }],
-        })
+        """One manifest for both entry points.
+
+        The server-rendered pages link this too, so installing from anywhere
+        in the app produces a single home-screen icon rather than two rival
+        ones with the same name.
+        """
+        return send_from_directory(PWA_DIR, "manifest.json",
+                                   mimetype="application/manifest+json")
 
     @app.route("/search")
     def search():

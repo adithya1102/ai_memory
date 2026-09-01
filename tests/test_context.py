@@ -190,7 +190,10 @@ manifest = client.get("/manifest.webmanifest")
 check("the web manifest is served", manifest.status_code == 200)
 data = manifest.get_json()
 check("it is named", data.get("name") == "ContextVault", data.get("name"))
-check("it opens on /context", data.get("start_url") == "/context",
+# The server-rendered pages and the PWA share one manifest, so installing
+# from either place yields one home-screen icon rather than two rivals with
+# the same name.  It opens the full app, not the single /context page.
+check("it opens the app", data.get("start_url") == "/app",
       data.get("start_url"))
 check("it is standalone", data.get("display") == "standalone")
 check("it declares an icon", bool(data.get("icons")))

@@ -1,0 +1,35 @@
+{
+  "id": "/app",
+  "name": "ContextVault",
+  "short_name": "ContextVault",
+  "description": "Search everything you have ever asked an AI, from your phone. Local-first.",
+  "start_url": "/app",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#101215",
+  "theme_color": "#101215",
+  "categories": ["productivity", "utilities"],
+  "icons": [
+    {
+      "src": "/static/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/static/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Memories",
+      "short_name": "Memories",
+      "description": "The facts you have chosen to keep",
+      "url": "/app#memories"
+    }
+  ]
+}

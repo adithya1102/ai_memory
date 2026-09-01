@@ -26,6 +26,7 @@ SUITES = [
     ("test_mcp.py", "MCP tools, stdio protocol, TCP transport", True),
     ("test_api.py", "Bridge REST API, ingest, memories, auth", True),
     ("test_context.py", "/context block, PWA page, extension assets", True),
+    ("test_pwa.py", "mobile PWA, manifest, service worker caching", True),
 ]
 
 NOISE = re.compile(r"it/s\]|HF Hub|Loading weights|^\[transformers\]")
