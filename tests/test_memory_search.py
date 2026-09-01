@@ -315,6 +315,98 @@ if ok:
 
 mcp_conn.close()
 
+
+# ======================================================================
+print("\n== H. a memory that predates the fix is caught by a rebuild ==")
+
+# The real case this exists for: a memory already sitting in a library, saved
+# before memory embedding existed, so it never went through POST /memories.
+# Nothing about it is new, so only a catch-up path can reach it -- and until
+# one did, the only remedy was a hand-run script.
+old_db = os.path.join(WORK, "predates.db")
+db.init_db(old_db).close()
+old_conn = db.get_connection(old_db)
+import_file(old_conn, EXPORT)
+legacy = db.insert_memory(
+    old_conn,
+    "Saved long before embeddings existed: deadlifts three times a week.",
+    source="pwa", tags=["gym"])
+
+# Put it in the state an upgraded library is in: indexed for keyword by the
+# trigger, with no vector and no bookkeeping row.
+old_conn.execute("DELETE FROM embedded_memories")
+old_conn.commit()
+if ok:
+    embeddings.ensure_vector_table(old_conn)
+    old_conn.execute("DELETE FROM memory_vectors")
+    old_conn.commit()
+
+check("it is keyword-indexed already",
+      len(search_memories(old_conn, "deadlifts")) == 1)
+check("but has no embedding",
+      not embeddings.has_memory_embeddings(old_conn))
+check("and the sync path reports it as pending",
+      legacy["id"] in [m["id"] for m in embeddings.pending_memories(old_conn)],
+      [m["id"] for m in embeddings.pending_memories(old_conn)])
+old_conn.close()
+
+if not ok:
+    print("  (semantic stack not installed: %s)" % reason)
+else:
+    # Drive the actual Settings button, not the helper underneath it.
+    old_app = create_app(db_path=old_db)
+    old_app.config["TESTING"] = True
+    old_client = old_app.test_client()
+    rebuilt = old_client.post("/embeddings/rebuild", follow_redirects=True)
+    check("POST /embeddings/rebuild succeeds", rebuilt.status_code == 200,
+          rebuilt.status_code)
+
+    verify = db.get_connection(old_db)
+    check("the rebuild embedded the pre-existing memory",
+          embeddings.has_memory_embeddings(verify))
+    check("its bookkeeping row was written",
+          verify.execute("SELECT COUNT(*) FROM embedded_memories "
+                         "WHERE memory_id = ?", (legacy["id"],)).fetchone()[0] == 1)
+    check("nothing is left pending",
+          embeddings.pending_memories(verify) == [],
+          [m["id"] for m in embeddings.pending_memories(verify)])
+    check("the rebuild page says it embedded a memory",
+          b"memor" in rebuilt.data.lower(),
+          rebuilt.data.decode("utf-8", "replace")[:0])
+
+    embeddings.wait_until_ready(180)
+    hits = embeddings.semantic_search_memories(verify, "lifting heavy weights "
+                                               "several times a week", top_k=5)
+    check("and it now answers a paraphrase",
+          any(h["memory_id"] == legacy["id"] for h in hits),
+          [h.get("content", "")[:40] for h in hits])
+    verify.close()
+
+    # The other catch-up path: importing anything refreshes the whole index,
+    # so a memory left unembedded is picked up there too.
+    import_db = os.path.join(WORK, "viaimport.db")
+    db.init_db(import_db).close()
+    import_conn = db.get_connection(import_db)
+    stranded = db.insert_memory(import_conn, "Stranded memory about squats.",
+                                source="pwa")
+    import_conn.execute("DELETE FROM embedded_memories")
+    import_conn.commit()
+    embeddings.ensure_vector_table(import_conn)
+    import_conn.execute("DELETE FROM memory_vectors")
+    import_conn.commit()
+    check("the stranded memory starts unembedded",
+          not embeddings.has_memory_embeddings(import_conn))
+
+    stats = import_file(import_conn, EXPORT)
+    check("import reports memories embedded",
+          stats.get("embedded_memories", 0) >= 1, stats.get("embedded_memories"))
+    check("and the stranded memory now has a vector",
+          embeddings.has_memory_embeddings(import_conn))
+    check("import still reports conversations separately",
+          isinstance(stats.get("embedded"), int), stats.get("embedded"))
+    import_conn.close()
+
+
 print("\n" + ("ALL CHECKS PASSED" if not fails
               else "%d FAILURES: %s" % (len(fails), fails)))
 sys.exit(1 if fails else 0)

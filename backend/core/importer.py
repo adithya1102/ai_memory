@@ -249,7 +249,13 @@ def import_file(conn, file_path, provider=None):
 
 
 def embed_new_conversations(conn):
-    """Embed conversations that are new or changed, if semantic search is on.
+    """Bring the semantic index up to date, if semantic search is on.
+
+    Covers conversations and memories both.  This is the shared catch-up
+    helper every automatic path runs -- import, /ingest, POST /conversations
+    with embed -- so a memory that was saved while the encoder was unavailable
+    is picked up by the next one of those rather than needing a hand-run
+    script.
 
     Embedding must never break an import: the library is fully usable with
     keyword search alone, so every failure here is reported and swallowed.
@@ -257,11 +263,16 @@ def embed_new_conversations(conn):
     from backend.core.search import SEMANTIC_ENABLED_KEY
 
     if not db.get_flag(conn, SEMANTIC_ENABLED_KEY, default=True):
-        return {"embedded": 0, "embedding_note": "semantic search is turned off"}
+        return {"embedded": 0, "embedded_memories": 0,
+                "embedding_note": "semantic search is turned off"}
     try:
-        from backend.core.embeddings import sync_embeddings
+        from backend.core.embeddings import (sync_embeddings,
+                                             sync_memory_embeddings)
         result = sync_embeddings(conn)
+        memories = sync_memory_embeddings(conn)
         return {"embedded": result["conversations"],
-                "embedding_note": result["skipped"]}
+                "embedded_memories": memories.get("memories", 0),
+                "embedding_note": result["skipped"] or memories.get("skipped")}
     except Exception as exc:  # noqa: BLE001 - surfaced, not raised
-        return {"embedded": 0, "embedding_note": str(exc)}
+        return {"embedded": 0, "embedded_memories": 0,
+                "embedding_note": str(exc)}
