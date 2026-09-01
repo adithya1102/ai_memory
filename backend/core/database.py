@@ -96,6 +96,20 @@ CREATE TABLE IF NOT EXISTS settings (
     value TEXT
 );
 
+-- Short facts an assistant curated and chose to keep, as opposed to the raw
+-- transcripts it read them out of.  Written over the Bridge API.  The
+-- conversation reference is ON DELETE SET NULL: losing the source transcript
+-- should not silently delete the conclusion drawn from it.
+CREATE TABLE IF NOT EXISTS memories (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    content         TEXT NOT NULL,
+    source          TEXT,
+    tags            TEXT,
+    conversation_id TEXT REFERENCES conversations(id) ON DELETE SET NULL,
+    created_at      TEXT,
+    updated_at      TEXT
+);
+
 CREATE INDEX IF NOT EXISTS idx_chunks_conversation
     ON chunks(conversation_id);
 CREATE INDEX IF NOT EXISTS idx_messages_conversation
@@ -110,6 +124,8 @@ CREATE INDEX IF NOT EXISTS idx_conversations_content_hash
     ON conversations(content_hash);
 CREATE INDEX IF NOT EXISTS idx_chain_members_conversation
     ON conversation_chain_members(conversation_id);
+CREATE INDEX IF NOT EXISTS idx_memories_created
+    ON memories(created_at DESC);
 
 -- One row per conversation.  rowid is kept equal to conversations.rowid.
 CREATE VIRTUAL TABLE IF NOT EXISTS conversation_fts USING fts5(
@@ -522,3 +538,66 @@ def get_stats(conn):
             "SELECT MAX(last_imported_at) FROM conversations"
         ).fetchone()[0],
     }
+
+
+# --------------------------------------------------------------------------
+# Memories
+# --------------------------------------------------------------------------
+
+def _memory_row(row):
+    """Shape one memories row for JSON, decoding the tags array."""
+    record = dict(row)
+    try:
+        record["tags"] = json.loads(record["tags"]) if record["tags"] else []
+    except ValueError:
+        record["tags"] = []
+    return record
+
+
+def insert_memory(conn, content, source=None, tags=None, conversation_id=None):
+    """Store one curated fact.  Returns the new row."""
+    now = utcnow()
+    cur = conn.execute(
+        """INSERT INTO memories
+               (content, source, tags, conversation_id, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?)""",
+        (content, source,
+         json.dumps(list(tags), ensure_ascii=False) if tags else None,
+         conversation_id, now, now),
+    )
+    conn.commit()
+    return get_memory(conn, cur.lastrowid)
+
+
+def get_memory(conn, memory_id):
+    row = conn.execute(
+        "SELECT * FROM memories WHERE id = ?", (memory_id,)).fetchone()
+    return _memory_row(row) if row else None
+
+
+def get_memories(conn, limit=50, source=None, conversation_id=None):
+    """List memories, newest first, optionally narrowed by source."""
+    sql = "SELECT * FROM memories"
+    clauses, params = [], []
+    if source:
+        clauses.append("source = ?")
+        params.append(source)
+    if conversation_id:
+        clauses.append("conversation_id = ?")
+        params.append(conversation_id)
+    if clauses:
+        sql += " WHERE " + " AND ".join(clauses)
+    sql += " ORDER BY datetime(created_at) DESC, id DESC LIMIT ?"
+    params.append(limit)
+    return [_memory_row(r) for r in conn.execute(sql, params)]
+
+
+def delete_memory(conn, memory_id):
+    """Delete one memory.  Returns True if a row went away."""
+    cur = conn.execute("DELETE FROM memories WHERE id = ?", (memory_id,))
+    conn.commit()
+    return cur.rowcount > 0
+
+
+def count_memories(conn):
+    return conn.execute("SELECT COUNT(*) FROM memories").fetchone()[0]

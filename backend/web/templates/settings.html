@@ -97,6 +97,38 @@
   }
 }</code></pre>
 
+  <h2>Bridge API</h2>
+  <p class="meta">A REST layer over this same library, at
+    <code>{{ api.base_url }}</code>. Lets a browser extension, a proxy or a
+    script read and write conversations without speaking MCP.</p>
+
+  <table>
+    <tr>
+      <th>Require an API key</th>
+      <td class="value">
+        <form method="post" action="{{ url_for('toggle_api_auth') }}">
+          <input type="hidden" name="enabled" value="{{ '0' if api.auth_required else '1' }}">
+          <button class="secondary toggle {{ 'on' if api.auth_required else 'off' }}" type="submit">
+            {{ 'Required' if api.auth_required else 'Off' }}
+          </button>
+        </form>
+      </td>
+    </tr>
+    {% if api.auth_required %}
+      <tr><th>X-API-Key</th>
+          <td class="value"><code>{{ api.key }}</code></td></tr>
+    {% endif %}
+  </table>
+
+  <p class="hint">
+    The API binds to <code>127.0.0.1</code>, so on a single-user machine a key
+    buys little and it stays off by default. Turn it on if this port is
+    reachable by anyone else — a shared login, a container with a published
+    port, a tunnel. A key is generated for you if you do not supply one.
+    <strong>The API can write as well as read</strong>, so treat the key as a
+    password for your whole archive.
+  </p>
+
   <h2>Providers connected</h2>
   <table>
     <tr><th>Provider</th><th class="value">Conversations</th></tr>

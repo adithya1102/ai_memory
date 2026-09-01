@@ -24,6 +24,7 @@ SUITES = [
     ("test_semantic.py", "chunking, embeddings, hybrid ranking", True),
     ("test_preload.py", "background model loading and fallback", True),
     ("test_mcp.py", "MCP tools, stdio protocol, TCP transport", True),
+    ("test_api.py", "Bridge REST API, ingest, memories, auth", True),
 ]
 
 NOISE = re.compile(r"it/s\]|HF Hub|Loading weights|^\[transformers\]")

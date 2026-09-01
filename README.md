@@ -2,7 +2,7 @@
 
 ![Python](https://img.shields.io/badge/python-3.10%2B-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
-![Tests](https://img.shields.io/badge/tests-399%20passing-brightgreen)
+![Tests](https://img.shields.io/badge/tests-479%20passing-brightgreen)
 ![Local first](https://img.shields.io/badge/data-100%25%20local-informational)
 
 **A local-first memory layer for your AI conversations. Search everything you
@@ -154,6 +154,7 @@ Cloud sync would make some things easier. It is not worth it for this data.
 | **Safe re-import** | Import the same export twice and nothing duplicates. Matched on id, then on content hash, so even a re-generated export is recognised. |
 | **Multi-provider** | ChatGPT, Claude and Gemini in one library and one index. The provider is detected from the file. |
 | **MCP server** | Three read-only tools so Claude Desktop can search your archive for you. |
+| **Bridge API** | A REST layer at `/api/v1` for everything that cannot speak MCP — extensions, proxies, scripts. Reads and writes the same library. |
 | **Desktop app** | Runs in a native window via pywebview, or in your browser with `--no-window`. |
 
 ## Setup
@@ -323,6 +324,30 @@ instead of stdio.
 If the official `mcp` SDK is installed it is used for stdio; otherwise a
 built-in JSON-RPC loop speaks the same protocol, so a fresh clone works with
 no extra install.
+
+## Bridge API
+
+MCP covers assistants that speak MCP. The Bridge API covers everything else — a
+browser extension watching a chat tab, a proxy in front of a provider, a shell
+script, another process on the machine. It is a REST layer at
+`http://127.0.0.1:5000/api/v1` over the *same* SQLite library, so a
+conversation posted over HTTP is searchable from Claude Desktop a second later.
+
+```bash
+# store a conversation
+curl -X POST http://127.0.0.1:5000/api/v1/conversations \
+  -H 'Content-Type: application/json' \
+  -d '{"title": "Notes", "messages": [{"role": "user", "content": "..."}]}'
+
+# find it again
+curl 'http://127.0.0.1:5000/api/v1/search?q=notes'
+```
+
+Ten endpoints: conversations, messages, search, chains, memories, a
+format-sniffing `/ingest` that takes raw provider exports, and `/health`.
+Optional `X-API-Key` auth, off by default because the port is loopback-only.
+
+**[Full API reference →](docs/api.md)**
 
 ## Architecture
 
@@ -512,7 +537,7 @@ conversation chains** re-runs detection over the whole library.
 python tests/run_all.py
 ```
 
-399 checks across six suites. They run against temporary databases and never
+479 checks across seven suites. They run against temporary databases and never
 touch `data/`, so running them cannot harm a real library. The two semantic
 suites skip themselves with a note if sentence-transformers is not installed.
 

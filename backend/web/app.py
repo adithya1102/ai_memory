@@ -2,6 +2,7 @@
 
 import os
 import re
+import secrets
 import sys
 from datetime import datetime
 
@@ -34,6 +35,13 @@ def create_app(db_path=db.DB_PATH, imports_dir=db.IMPORTS_DIR):
     app.config["IMPORTS_DIR"] = imports_dir
     app.config["MAX_CONTENT_LENGTH"] = 1024 * 1024 * 1024  # exports get big
     app.secret_key = os.urandom(24)  # local app: flash messages only
+
+    # The Bridge API shares this app, and therefore this connection handling
+    # and this database.  Anything posted to /api/v1 is searchable from the UI
+    # and from MCP immediately.
+    from backend.web import api as api_module
+    app.register_blueprint(api_module.api)
+    api_module.register_error_handlers(app)
 
     # ------------------------------------------------------------------
     # Per-request database connection
@@ -143,7 +151,17 @@ def create_app(db_path=db.DB_PATH, imports_dir=db.IMPORTS_DIR):
             semantic_on=db.get_flag(conn, SEMANTIC_ENABLED_KEY, default=True),
             embedding=embeddings.embedding_stats(conn),
             mcp=_mcp_status(conn),
+            api=_api_status(conn),
         )
+
+    def _api_status(conn):
+        return {
+            "auth_required": db.get_flag(conn, api_module.API_AUTH_REQUIRED_KEY,
+                                         default=False),
+            "key": db.get_setting(conn, api_module.API_KEY_KEY) or "",
+            "base_url": "http://127.0.0.1:%s%s" % (
+                app.config.get("PORT", 5000), api_module.API_PREFIX),
+        }
 
     def _mcp_status(conn):
         from backend.mcp import server as mcp_server
@@ -162,6 +180,25 @@ def create_app(db_path=db.DB_PATH, imports_dir=db.IMPORTS_DIR):
         db.set_flag(conn, SEMANTIC_ENABLED_KEY, enabled)
         flash("Semantic search %s." % ("enabled" if enabled else "disabled"),
               "success")
+        return redirect(url_for("settings"))
+
+    @app.route("/settings/api", methods=["POST"])
+    def toggle_api_auth():
+        conn = connection()
+        enabled = request.form.get("enabled") == "1"
+        if enabled:
+            # Reuse the existing key if there is one, so toggling off and back
+            # on does not silently invalidate every configured client.
+            key = (request.form.get("key") or "").strip() \
+                or db.get_setting(conn, api_module.API_KEY_KEY) \
+                or secrets.token_urlsafe(32)
+            db.set_setting(conn, api_module.API_KEY_KEY, key)
+            db.set_flag(conn, api_module.API_AUTH_REQUIRED_KEY, True)
+            flash("Bridge API now requires an X-API-Key header.", "success")
+        else:
+            db.set_flag(conn, api_module.API_AUTH_REQUIRED_KEY, False)
+            flash("Bridge API auth disabled. Any local process can reach it.",
+                  "success")
         return redirect(url_for("settings"))
 
     @app.route("/settings/mcp", methods=["POST"])
