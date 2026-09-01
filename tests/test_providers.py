@@ -167,6 +167,57 @@ check("claude block-form content extracted",
       "block form" in (db.get_messages(conn2, "claude:blocks")[0]["content"]))
 check("gemini alternate field names handled",
       "alternate field names" in (db.get_messages(conn2, "gemini:alt")[0]["content"]))
+print("\n== real Claude export shape ==")
+# A real export gives every message BOTH a structured content list and a
+# flattened text rendering.  The flattened one inlines the model's thinking as
+# prose and stubs each tool block out with a placeholder, so the adapter has to
+# read the blocks and treat text purely as a fallback.
+PLACEHOLDER = "```\nThis block is not supported on your current device yet.\n```"
+real = os.path.join(WORK, "claude_real.json")
+json.dump([
+    {"uuid": "real-1", "name": "Both fields present",
+     "created_at": "2026-08-31T22:46:57.158546Z",
+     "updated_at": "2026-08-31T22:51:30.420326Z",
+     "account": {"uuid": "acct"},
+     "chat_messages": [
+         {"uuid": "m1", "sender": "human", "created_at": "2026-08-31T22:46:57Z",
+          "attachments": [], "files": [], "text": "What's my gym routine?",
+          "content": [{"type": "text", "text": "What's my gym routine?"}]},
+         {"uuid": "m2", "sender": "assistant", "created_at": "2026-08-31T22:47:10Z",
+          "attachments": [], "files": [],
+          "text": "Deciding how to answer.\n" + PLACEHOLDER + "\n\nNothing is logged yet.",
+          "content": [
+              {"type": "thinking", "thinking": "Deciding how to answer."},
+              {"type": "tool_use", "name": "search", "input": {}},
+              {"type": "tool_result", "content": []},
+              {"type": "text", "text": "Nothing is logged yet."}]},
+     ]},
+    # Pure tool/thinking traffic with no readable text is not a transcript.
+    {"uuid": "real-2", "name": "", "chat_messages": [
+        {"sender": "human", "text": "", "content": [],
+         "files": [{"file_uuid": "f1", "file_name": None}]},
+        {"sender": "assistant", "text": "",
+         "content": [{"type": "thinking", "thinking": "hmm"}]}]},
+], open(real, "w", encoding="utf-8"))
+
+conn3 = db.init_db(os.path.join(WORK, "real.db"))
+real_stats = import_file(conn3, real)
+check("real export shape detected as claude", detect_provider(real) == "claude")
+check("conversation with readable text imported", real_stats["inserted"] == 1,
+      real_stats)
+check("text-free conversation skipped", real_stats["skipped"] == 1, real_stats)
+reply = db.get_messages(conn3, "claude:real-1")[1]["content"]
+check("placeholder chrome stripped from the reply",
+      "not supported on your current device" not in reply, reply)
+check("thinking kept out of the reply", "Deciding how to answer" not in reply,
+      reply)
+check("visible reply text preserved", reply == "Nothing is logged yet.", reply)
+check("flattened text still used when there are no blocks",
+      "hello there" in db.get_messages(conn2, "claude:ok")[0]["content"])
+check("search finds a word only the blocks carried",
+      [r["title"] for r in search_conversations(conn3, "gym")]
+      == ["Both fields present"])
+conn3.close()
 conn2.close()
 conn.close()
 

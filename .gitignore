@@ -3,3 +3,13 @@ __pycache__/
 *.pyc
 venv/
 .venv/
+
+# Real provider exports. These are personal conversation history, and the
+# Claude manifest additionally carries single-use download URLs.
+manifest-*.json
+conversations.json
+conversations-*.zip
+light_metadata-*.zip
+projects-*.zip
+memories-*.zip
+design_chats-*.zip

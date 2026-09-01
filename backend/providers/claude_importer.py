@@ -8,6 +8,7 @@ content, which may be a plain string or a list of typed blocks.
 
 import json
 import os
+import re
 
 from backend.core import database as db
 from backend.providers import common
@@ -19,25 +20,56 @@ ID_PREFIX = "claude:"
 # Claude calls the person "human"; the universal format calls them "user".
 ROLE_MAP = {"human": "user", "user": "user", "assistant": "assistant"}
 
+# Block types that carry conversation.  Everything else in a real export is
+# machinery rather than transcript: "thinking" is the model's scratchpad,
+# "tool_use"/"tool_result" are the mechanics of a tool call, and
+# "injected_prompt_block" is system plumbing spliced in at request time.  None
+# of it is something the person said or was shown as the reply, so indexing it
+# would surface hits the user cannot recognise in their own history.
+TEXT_BLOCK_TYPES = (None, "text")
+
+# Every message in a real export carries BOTH a structured ``content`` list and
+# a flattened ``text`` rendering of it, and the two disagree.  ``text`` inlines
+# the model's thinking as though it were prose and replaces each tool block
+# with the placeholder below, so reading it first would index hundreds of
+# copies of a sentence nobody wrote and attribute the scratchpad to the reply.
+# The structured blocks are the source of truth and are read first; ``text``
+# remains the fallback for older exports that carry no ``content``, scrubbed of
+# the placeholder when it is used.
+UNSUPPORTED_BLOCK_RE = re.compile(
+    r"```\s*This block is not supported on your current device yet\.\s*```")
+
+
+def _clean(text):
+    """Drop placeholder chrome and collapse the blank runs it leaves behind."""
+    text = UNSUPPORTED_BLOCK_RE.sub("", text)
+    return re.sub(r"\n{3,}", "\n\n", text).strip()
+
 
 def _extract_text(entry):
-    """Pull readable text out of one exported message."""
-    text = entry.get("text")
-    if isinstance(text, str) and text.strip():
-        return text.strip()
+    """Pull readable text out of one exported message.
 
-    # Newer exports carry a content array of typed blocks.
+    Structured blocks win over the flattened ``text`` field; see
+    ``UNSUPPORTED_BLOCK_RE`` for why.
+    """
     blocks = entry.get("content")
     if isinstance(blocks, list):
         parts = []
         for block in blocks:
             if isinstance(block, str):
                 parts.append(block)
-            elif isinstance(block, dict) and block.get("type") in (None, "text"):
+            elif isinstance(block, dict) and block.get("type") in TEXT_BLOCK_TYPES:
                 parts.append(block.get("text") or "")
-        return "\n".join(p for p in parts if p).strip()
-    if isinstance(blocks, str):
-        return blocks.strip()
+        joined = _clean("\n".join(p for p in parts if p))
+        if joined:
+            return joined
+    elif isinstance(blocks, str) and blocks.strip():
+        return _clean(blocks)
+
+    # No usable blocks: fall back to the flattened rendering.
+    text = entry.get("text")
+    if isinstance(text, str) and text.strip():
+        return _clean(text)
     return ""
 
 
