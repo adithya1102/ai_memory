@@ -3,9 +3,52 @@
   "use strict";
 
   var CV = window.CVContext;
-  var fields = ["baseUrl", "apiKey", "limit", "autoSend"];
+  var CVP = window.CVPlatforms;
+  var fields = ["baseUrl", "apiKey", "limit", "autoSend", "captureEnabled"];
+
+  var DEFAULTS = Object.assign({}, CV.DEFAULTS, {
+    captureEnabled: true,
+    capturePlatforms: { chatgpt: true }
+  });
 
   function el(id) { return document.getElementById(id); }
+
+  /* One checkbox per platform. Platforms without a capture adapter are shown
+   * disabled rather than omitted: an absent row looks like a bug, a greyed
+   * one reads as "not yet". */
+  function renderPlatforms(config) {
+    var wrap = el("platforms");
+    if (!wrap) return;
+    wrap.textContent = "";
+
+    CVP.PLATFORMS.forEach(function (platform) {
+      var supported = CVP.supportsCapture(platform);
+      var row = document.createElement("div");
+      row.className = "platform-row";
+
+      var box = document.createElement("input");
+      box.type = "checkbox";
+      box.id = "capture-" + platform.id;
+      box.disabled = !supported;
+      box.checked = supported
+        && config.capturePlatforms[platform.id] !== false;
+      box.addEventListener("change", function () {
+        config.capturePlatforms[platform.id] = box.checked;
+        chrome.storage.sync.set(
+          { capturePlatforms: config.capturePlatforms },
+          function () { setStatus("Saved.", "ok"); });
+      });
+      row.appendChild(box);
+
+      var label = document.createElement("label");
+      label.setAttribute("for", box.id);
+      label.textContent = platform.name
+        + (supported ? "" : "  (/context only)");
+      row.appendChild(label);
+
+      wrap.appendChild(row);
+    });
+  }
 
   function setStatus(text, cls) {
     var node = el("status");
@@ -13,19 +56,24 @@
     node.className = cls || "";
   }
 
-  chrome.storage.sync.get(CV.DEFAULTS, function (stored) {
-    var config = Object.assign({}, CV.DEFAULTS, stored || {});
+  chrome.storage.sync.get(DEFAULTS, function (stored) {
+    var config = Object.assign({}, DEFAULTS, stored || {});
+    config.capturePlatforms = Object.assign({}, DEFAULTS.capturePlatforms,
+                                            config.capturePlatforms || {});
     fields.forEach(function (key) {
       var input = el(key);
+      if (!input) return;
       if (input.type === "checkbox") input.checked = !!config[key];
       else input.value = config[key];
     });
+    renderPlatforms(config);
   });
 
   el("save").addEventListener("click", function () {
     var config = {};
     fields.forEach(function (key) {
       var input = el(key);
+      if (!input) return;
       config[key] = input.type === "checkbox" ? input.checked : input.value;
     });
     config.baseUrl = String(config.baseUrl || "").trim()

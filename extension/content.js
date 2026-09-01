@@ -1,73 +1,79 @@
-/* Content script: watch the composer for "/context <query>".
+/* Content script.
  *
- * When the user presses Enter on a line that starts with /context, this
- * cancels the send, searches the local archive, and rewrites the composer to
- * the retrieved history followed by the original question.
+ * Three jobs on the page:
  *
- * It does not send the message. Injecting context means uploading excerpts of
- * a private local archive to whichever provider owns this tab, so the user
- * sees exactly what is about to leave the machine and presses Enter -- or
- * edits it, or deletes it -- themselves. "Send automatically" is available in
- * the options for anyone who wants it, and is off by default.
+ *   1. /context   intercept Enter on a "/context ..." line, search the local
+ *                 archive, and offer the results in a panel to insert.
+ *   2. capture    watch the transcript and send it to the Bridge API, batched
+ *                 at five new messages or thirty seconds.
+ *   3. launcher   a small button that opens the same panel by hand.
+ *
+ * Capture is ChatGPT-only for now. The other platforms are detected and get
+ * /context, but reading their transcripts back out needs an adapter checked
+ * against each site's real markup; guessing produces half-conversations and
+ * mislabelled speakers, which is worse than not capturing at all.
  */
 (function () {
   "use strict";
 
   var CV = window.CVContext;
-  if (!CV) return;
+  var CVP = window.CVPlatforms;
+  var CVC = window.CVCapture;
+  if (!CV || !CVP || !CVC) return;
 
-  /* Site adapters.
-   *
-   * These selectors belong to someone else's app and will break when it is
-   * redesigned; that is why each site lists several and why there is a
-   * generic fallback. A miss here degrades to "the command does nothing",
-   * never to a broken composer.
-   */
-  var SITES = [
-    {
-      name: "chatgpt",
-      match: /(^|\.)chatgpt\.com$|(^|\.)chat\.openai\.com$/,
-      selectors: ["#prompt-textarea", "div[contenteditable='true']",
-                  "textarea[data-id]", "textarea"]
-    },
-    {
-      name: "claude",
-      match: /(^|\.)claude\.ai$/,
-      selectors: ["div.ProseMirror[contenteditable='true']",
-                  "div[contenteditable='true']", "textarea"]
-    },
-    {
-      name: "gemini",
-      match: /(^|\.)gemini\.google\.com$/,
-      selectors: ["div.ql-editor[contenteditable='true']",
-                  "rich-textarea div[contenteditable='true']",
-                  "div[contenteditable='true']", "textarea"]
-    }
-  ];
+  var platform = CVP.forHostname(location.hostname);
+  if (!platform) return;
 
-  var site = SITES.filter(function (s) {
-    return s.match.test(location.hostname);
-  })[0];
-  if (!site) return;
+  var settings = null;
+  var batcher = new CVC.Batcher();
+  var flushing = false;
+  var lastUrl = location.href;
 
   // ------------------------------------------------------------------
-  // Reading and writing the composer
+  // Talking to the service worker
+  // ------------------------------------------------------------------
+
+  function send(type, extra) {
+    return new Promise(function (resolve, reject) {
+      chrome.runtime.sendMessage(Object.assign({ type: type }, extra || {}),
+        function (response) {
+          if (chrome.runtime.lastError) {
+            reject(new Error(chrome.runtime.lastError.message));
+          } else if (!response || !response.ok) {
+            reject(new Error(response ? response.error : "no response"));
+          } else {
+            resolve(response.data);
+          }
+        });
+    });
+  }
+
+  function loadSettings() {
+    return send("contextvault:settings").then(function (config) {
+      settings = config;
+      return config;
+    }).catch(function () {
+      settings = { captureEnabled: false, capturePlatforms: {}, limit: 5 };
+      return settings;
+    });
+  }
+
+  // ------------------------------------------------------------------
+  // Composer
   // ------------------------------------------------------------------
 
   function isEditor(node) {
     if (!node || node.nodeType !== 1) return false;
     if (node.tagName === "TEXTAREA") return true;
-    return node.getAttribute && node.getAttribute("contenteditable") === "true";
+    return node.getAttribute
+        && node.getAttribute("contenteditable") === "true";
   }
 
-  /* Prefer whatever the user is actually typing in; fall back to the site's
-   * known selectors. Focus is the more reliable signal of the two. */
   function findEditor(target) {
     if (isEditor(target)) return target;
-    var active = document.activeElement;
-    if (isEditor(active)) return active;
-    for (var i = 0; i < site.selectors.length; i++) {
-      var found = document.querySelector(site.selectors[i]);
+    if (isEditor(document.activeElement)) return document.activeElement;
+    for (var i = 0; i < platform.composer.length; i++) {
+      var found = document.querySelector(platform.composer[i]);
       if (isEditor(found)) return found;
     }
     return null;
@@ -78,23 +84,18 @@
     return editor.tagName === "TEXTAREA" ? editor.value : editor.innerText;
   }
 
-  /* Replace the composer's contents.
-   *
-   * These editors are React/ProseMirror/Quill controlled inputs: assigning to
-   * .value or .innerText updates the DOM but leaves the framework's own state
-   * stale, and the send handler reads the framework's state. Going through the
-   * native setter plus a bubbling input event, or execCommand for
-   * contenteditable, is what makes the change one the app actually sees.
-   */
-  function writeEditor(editor, text) {
+  /* These editors are React/ProseMirror/Quill controlled inputs: assigning to
+   * .value or .innerText updates the DOM but leaves the framework's state
+   * stale, and the send button reads the framework's state. */
+  function writeEditor(editor, value) {
     editor.focus();
 
     if (editor.tagName === "TEXTAREA") {
       var setter = Object.getOwnPropertyDescriptor(
         window.HTMLTextAreaElement.prototype, "value").set;
-      setter.call(editor, text);
+      setter.call(editor, value);
       editor.dispatchEvent(new Event("input", { bubbles: true }));
-      return true;
+      return;
     }
 
     var selection = window.getSelection();
@@ -103,28 +104,15 @@
     selection.removeAllRanges();
     selection.addRange(range);
 
-    var inserted = false;
-    try {
-      inserted = document.execCommand("insertText", false, text);
-    } catch (error) {
-      inserted = false;
-    }
-    if (!inserted) {
-      // Last resort. Some editors will not notice this, which is why it is
-      // not the first choice.
-      editor.textContent = text;
+    var ok = false;
+    try { ok = document.execCommand("insertText", false, value); }
+    catch (error) { ok = false; }
+    if (!ok) {
+      editor.textContent = value;
       editor.dispatchEvent(new InputEvent("input", {
-        bubbles: true, inputType: "insertText", data: text
+        bubbles: true, inputType: "insertText", data: value
       }));
     }
-    return true;
-  }
-
-  function submit(editor) {
-    editor.dispatchEvent(new KeyboardEvent("keydown", {
-      key: "Enter", code: "Enter", keyCode: 13, which: 13,
-      bubbles: true, cancelable: true
-    }));
   }
 
   // ------------------------------------------------------------------
@@ -147,70 +135,263 @@
     if (tone !== "busy") {
       pillTimer = setTimeout(function () {
         pill.classList.remove("cv-visible");
-      }, 6000);
+      }, 5000);
     }
   }
 
   // ------------------------------------------------------------------
-  // The command
+  // The panel
   // ------------------------------------------------------------------
 
-  var running = false;
+  var panel = null;
 
-  function ask(query, limit) {
-    return new Promise(function (resolve, reject) {
-      chrome.runtime.sendMessage(
-        { type: "contextvault:search", query: query, limit: limit },
-        function (response) {
-          if (chrome.runtime.lastError) {
-            reject(new Error(chrome.runtime.lastError.message));
-          } else if (!response || !response.ok) {
-            reject(new Error(response ? response.error : "no response"));
-          } else {
-            resolve(response.data);
-          }
-        }
-      );
-    });
-  }
+  function buildPanel() {
+    if (panel) return panel;
 
-  function settings() {
-    return new Promise(function (resolve) {
-      chrome.storage.sync.get(CV.DEFAULTS, function (stored) {
-        resolve(Object.assign({}, CV.DEFAULTS, stored || {}));
+    panel = document.createElement("div");
+    panel.className = "cv-panel";
+    panel.setAttribute("role", "dialog");
+    panel.setAttribute("aria-label", "ContextVault");
+    panel.innerHTML =
+      '<div class="cv-panel-head">' +
+        '<strong>ContextVault</strong>' +
+        '<button class="cv-x" type="button" aria-label="Close">&times;</button>' +
+      '</div>' +
+      '<form class="cv-panel-search">' +
+        '<input type="search" placeholder="Search your history…" ' +
+               'aria-label="Search your history">' +
+        '<button type="submit">Search</button>' +
+      '</form>' +
+      '<div class="cv-panel-status"></div>' +
+      '<div class="cv-panel-results"></div>' +
+      '<div class="cv-panel-foot">' +
+        '<button class="cv-insert-all" type="button">Insert all</button>' +
+        '<button class="cv-capture-now" type="button">Capture this chat</button>' +
+      '</div>';
+
+    document.body.appendChild(panel);
+
+    panel.querySelector(".cv-x").addEventListener("click", hidePanel);
+    panel.querySelector(".cv-panel-search")
+      .addEventListener("submit", function (event) {
+        event.preventDefault();
+        var value = panel.querySelector("input").value.trim();
+        if (value) runSearch(value);
       });
+    panel.querySelector(".cv-insert-all")
+      .addEventListener("click", function () { insertAll(); });
+    panel.querySelector(".cv-capture-now")
+      .addEventListener("click", function () { captureNow(); });
+
+    return panel;
+  }
+
+  function showPanel(query) {
+    buildPanel().classList.add("cv-open");
+    var input = panel.querySelector("input");
+    if (query !== undefined) input.value = query;
+    input.focus();
+  }
+
+  function hidePanel() {
+    if (panel) panel.classList.remove("cv-open");
+  }
+
+  function panelStatus(text, tone) {
+    if (!panel) return;
+    var node = panel.querySelector(".cv-panel-status");
+    node.textContent = text || "";
+    node.setAttribute("data-tone", tone || "info");
+  }
+
+  var lastResults = [];
+  var lastQuery = "";
+
+  function renderResults(query, results) {
+    lastResults = results || [];
+    lastQuery = query;
+    var wrap = panel.querySelector(".cv-panel-results");
+    wrap.textContent = "";
+
+    if (!lastResults.length) {
+      var none = document.createElement("p");
+      none.className = "cv-empty";
+      none.textContent = "Nothing matched.";
+      wrap.appendChild(none);
+      return;
+    }
+
+    lastResults.forEach(function (result) {
+      var card = document.createElement("div");
+      card.className = "cv-result";
+
+      var title = document.createElement("div");
+      title.className = "cv-result-title";
+      title.textContent = result.title || "Untitled conversation";
+      card.appendChild(title);
+
+      var meta = document.createElement("div");
+      meta.className = "cv-result-meta";
+      meta.textContent = (result.provider || "unknown") + " · "
+        + String(result.date || "").slice(0, 10)
+        + " · " + (result.match_type || "match");
+      card.appendChild(meta);
+
+      if (result.snippet) {
+        var snippet = document.createElement("p");
+        snippet.className = "cv-result-snippet";
+        snippet.textContent = CV.truncate(result.snippet, 260);
+        card.appendChild(snippet);
+      }
+
+      var insert = document.createElement("button");
+      insert.type = "button";
+      insert.className = "cv-insert";
+      insert.textContent = "Insert";
+      insert.addEventListener("click", function () { insertOne(result); });
+      card.appendChild(insert);
+
+      wrap.appendChild(card);
     });
   }
 
-  async function run(editor, parsed) {
-    running = true;
+  function insertBlock(results) {
+    var editor = findEditor(null);
+    if (!editor) {
+      showStatus("ContextVault: could not find the message box", "error");
+      return;
+    }
+    // Anything the user had already typed is the real question; keep it.
+    var typed = readEditor(editor).trim();
+    var parsed = CV.parseCommand(typed);
+    var question = parsed ? parsed.query : typed;
+
+    writeEditor(editor, CV.formatContextBlock(question || lastQuery, results,
+                                              { snippetLength: 400 }));
+    hidePanel();
+    showStatus(CV.statusText("ok", results.length), "ok");
+  }
+
+  function insertOne(result) { insertBlock([result]); }
+  function insertAll() {
+    if (lastResults.length) insertBlock(lastResults);
+  }
+
+  function runSearch(query) {
+    showPanel(query);
+    panelStatus("Searching…");
+    return send("contextvault:search",
+                { query: query, limit: (settings && settings.limit) || 5 })
+      .then(function (data) {
+        var results = (data && data.results) || [];
+        renderResults(query, results);
+        panelStatus(results.length
+          ? results.length + " result" + (results.length === 1 ? "" : "s")
+          : "No matches.", results.length ? "ok" : "warn");
+        return results;
+      })
+      .catch(function (error) {
+        panelStatus(CV.explainError(error, ""), "error");
+      });
+  }
+
+  // ------------------------------------------------------------------
+  // Launcher button
+  // ------------------------------------------------------------------
+
+  function addLauncher() {
+    if (document.querySelector(".cv-launcher")) return;
+    var button = document.createElement("button");
+    button.className = "cv-launcher";
+    button.type = "button";
+    button.title = "ContextVault — search your history";
+    button.setAttribute("aria-label", "Open ContextVault");
+    button.innerHTML =
+      '<svg viewBox="0 0 24 24" aria-hidden="true">' +
+        '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="10" r="3"/>' +
+        '<path d="M12 13v4"/></svg>';
+    button.addEventListener("click", function () {
+      if (panel && panel.classList.contains("cv-open")) hidePanel();
+      else showPanel("");
+    });
+    document.body.appendChild(button);
+  }
+
+  // ------------------------------------------------------------------
+  // Capture
+  // ------------------------------------------------------------------
+
+  function captureAllowed() {
+    if (!CVP.supportsCapture(platform)) return false;
+    if (!settings || !settings.captureEnabled) return false;
+    return settings.capturePlatforms[platform.id] !== false;
+  }
+
+  function readPage() {
+    return CVP.readConversation(platform, document, location.href);
+  }
+
+  async function flush(force) {
+    if (flushing) return;
+    var payload = batcher.payload();
+    if (!payload) return;
+
+    flushing = true;
+    var count = batcher.messages.length;
     try {
-      showStatus(CV.statusText("searching"), "busy");
-      var config = await settings();
-      var data = await ask(parsed.query, config.limit);
-      var results = (data && data.results) || [];
-
-      var block = CV.formatContextBlock(parsed.query, results,
-                                        { snippetLength: 400 });
-      writeEditor(editor, block);
-
-      if (!results.length) {
-        showStatus(CV.statusText("none", parsed.query), "warn");
+      var result = await send("contextvault:ingest",
+                              { payload: payload, force: !!force });
+      if (result && result.skipped) {
+        if (force) showStatus("ContextVault: " + result.skipped, "warn");
       } else {
-        showStatus(CV.statusText("ok", results.length), "ok");
-        if (config.autoSend) setTimeout(function () { submit(editor); }, 60);
+        batcher.markSent(count);
+        if (force) showStatus("ContextVault: saved " + count + " messages",
+                              "ok");
       }
     } catch (error) {
-      showStatus(CV.statusText("error", error.message || String(error)),
-                 "error");
+      // Leave the batch pending; the next tick will try again. A failed
+      // capture must not lose the transcript.
+      if (force) showStatus("ContextVault: " + error.message, "error");
     } finally {
-      running = false;
+      flushing = false;
     }
   }
 
+  function observePage() {
+    if (!captureAllowed()) return;
+    var conversation = readPage();
+    if (!conversation) return;
+    batcher.observe(conversation);
+    if (batcher.due()) flush(false);
+  }
+
+  async function captureNow() {
+    if (!CVP.supportsCapture(platform)) {
+      showStatus("ContextVault: capture is not supported on "
+                 + platform.name + " yet", "warn");
+      return;
+    }
+    var conversation = readPage();
+    if (!conversation) {
+      showStatus("ContextVault: nothing to capture — open a saved conversation",
+                 "warn");
+      return;
+    }
+    batcher.observe(conversation);
+    await flush(true);
+  }
+
+  // ------------------------------------------------------------------
+  // Wiring
+  // ------------------------------------------------------------------
+
   document.addEventListener("keydown", function (event) {
+    if (event.key === "Escape" && panel
+        && panel.classList.contains("cv-open")) {
+      hidePanel();
+      return;
+    }
     if (event.key !== "Enter" || event.shiftKey || event.isComposing) return;
-    if (running) return;
 
     var editor = findEditor(event.target);
     if (!editor) return;
@@ -218,8 +399,8 @@
     var parsed = CV.parseCommand(readEditor(editor));
     if (!parsed) return;
 
-    // From here on this keystroke is ours: the message must not be sent as
-    // typed, because "/context gym" is not a question anyone wants answered.
+    // This keystroke is ours: "/context gym" is not a question anyone wants
+    // an assistant to answer.
     event.preventDefault();
     event.stopPropagation();
 
@@ -227,6 +408,59 @@
       showStatus(CV.statusText("empty"), "warn");
       return;
     }
-    run(editor, parsed);
-  }, true);  // capture: beat the site's own Enter handler to it
+    runSearch(parsed.query);
+  }, true);
+
+  function start() {
+    addLauncher();
+
+    if (CVP.supportsCapture(platform)) {
+      var observer = new MutationObserver(function () {
+        clearTimeout(observer._timer);
+        // The transcript mutates constantly while a reply streams in.
+        // Debounce so a full read happens once the dust settles, not per
+        // token.
+        observer._timer = setTimeout(observePage, 900);
+      });
+      observer.observe(document.body, { childList: true, subtree: true });
+
+      // The count rule is handled by the observer; this is the timer half.
+      setInterval(function () {
+        if (batcher.due()) flush(false);
+      }, 5000);
+
+      // ChatGPT is a single-page app: a new thread changes the URL without a
+      // reload, and mixing two threads into one record would corrupt both.
+      setInterval(function () {
+        if (location.href !== lastUrl) {
+          lastUrl = location.href;
+          flush(false);
+          batcher.reset();
+        }
+      }, 1000);
+
+      // A tab closed mid-conversation should still save what it has.
+      window.addEventListener("pagehide", function () { flush(false); });
+    }
+  }
+
+  // The popup's "Capture this chat now" button: the page read has to happen
+  // here, since only the content script can see the transcript.
+  chrome.runtime.onMessage.addListener(function (message, _sender, respond) {
+    if (!message) return false;
+    if (message.type === "contextvault:capture-now") {
+      captureNow().then(function () { respond({ ok: true }); });
+      return true;
+    }
+    if (message.type === "contextvault:open-panel") {
+      showPanel("");
+      respond({ ok: true });
+      return true;
+    }
+    return false;
+  });
+
+  loadSettings().then(start);
+
+  chrome.storage.onChanged.addListener(function () { loadSettings(); });
 })();

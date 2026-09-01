@@ -10,6 +10,10 @@
       font: 15px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
     }
     h1 { font-size: 22px; margin-bottom: 4px; }
+    h2 { font-size: 17px; margin-top: 34px; margin-bottom: 4px; }
+    .platform-row { display: flex; align-items: center; gap: 9px; margin-top: 12px; }
+    .platform-row label { margin: 0; font-weight: 500; }
+    .platform-row input[disabled] + label { opacity: 0.55; }
     p.lede { margin-top: 0; opacity: 0.75; }
     label { display: block; margin-top: 22px; font-weight: 600; }
     .hint { font-weight: 400; opacity: 0.7; font-size: 13px; display: block; }
@@ -64,6 +68,23 @@
     archive to whichever site you are on, so the default is to let you read it
     first and press Enter yourself.</span>
 
+  <h2>Auto-capture</h2>
+  <p class="hint">Saves conversations to your local archive as you have them,
+    batched at five messages or thirty seconds. Everything stays on this
+    machine — capture writes to ContextVault, never anywhere else.</p>
+
+  <div class="row">
+    <input type="checkbox" id="captureEnabled">
+    <label for="captureEnabled">Capture conversations automatically</label>
+  </div>
+
+  <div id="platforms"></div>
+
+  <p class="hint">Only ChatGPT can be captured so far. Reading a transcript
+    back out needs an adapter written against each site's own markup, and a
+    wrong guess records half a conversation or attributes it to the wrong
+    speaker. The rest still support <code>/context</code>.</p>
+
   <div>
     <button id="save">Save</button>
     <button id="test">Test connection</button>
@@ -77,6 +98,7 @@
   </p>
 
   <script src="lib/context.js"></script>
+  <script src="lib/platforms.js"></script>
   <script src="options.js"></script>
 </body>
 </html>

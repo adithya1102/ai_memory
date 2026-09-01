@@ -226,8 +226,10 @@ check("the documented block matches what is generated",
 
 EXT = os.path.join(ROOT, "extension")
 for name in ("manifest.json", "background.js", "content.js", "content.css",
-             "options.html", "options.js", "README.md",
-             os.path.join("lib", "context.js")):
+             "options.html", "options.js", "popup.html", "popup.js",
+             "README.md", os.path.join("lib", "context.js"),
+             os.path.join("lib", "platforms.js"),
+             os.path.join("lib", "capture.js")):
     check("extension/%s is present" % name.replace(os.sep, "/"),
           os.path.exists(os.path.join(EXT, name)))
 
@@ -240,12 +242,18 @@ check("it asks for loopback host permissions only",
           for h in manifest_json.get("host_permissions", [])),
       manifest_json.get("host_permissions"))
 sites = " ".join(manifest_json["content_scripts"][0]["matches"])
-for host in ("chatgpt.com", "claude.ai", "gemini.google.com"):
+for host in ("chatgpt.com", "claude.ai", "gemini.google.com",
+             "chat.deepseek.com", "perplexity.ai"):
     check("it runs on %s" % host, host in sites)
-check("the shared library loads before the content script",
-      manifest_json["content_scripts"][0]["js"]
-      == ["lib/context.js", "content.js"],
-      manifest_json["content_scripts"][0]["js"])
+
+scripts = manifest_json["content_scripts"][0]["js"]
+check("the content script loads last, after every library it uses",
+      scripts[-1] == "content.js", scripts)
+for lib in ("lib/context.js", "lib/platforms.js", "lib/capture.js"):
+    check("%s is loaded" % lib, lib in scripts, scripts)
+check("there is a toolbar popup",
+      manifest_json.get("action", {}).get("default_popup") == "popup.html",
+      manifest_json.get("action"))
 
 
 print("\n" + ("ALL CHECKS PASSED" if not fails

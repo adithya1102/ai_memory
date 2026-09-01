@@ -14,50 +14,142 @@ importScripts("lib/context.js");
 
 var CV = self.CVContext;
 
+var DEFAULTS = Object.assign({}, CV.DEFAULTS, {
+  captureEnabled: true,
+  capturePlatforms: { chatgpt: true }
+});
+
 function settings() {
   return new Promise(function (resolve) {
-    chrome.storage.sync.get(CV.DEFAULTS, function (stored) {
-      resolve(Object.assign({}, CV.DEFAULTS, stored || {}));
+    chrome.storage.sync.get(DEFAULTS, function (stored) {
+      var config = Object.assign({}, DEFAULTS, stored || {});
+      config.capturePlatforms = Object.assign({}, DEFAULTS.capturePlatforms,
+                                              config.capturePlatforms || {});
+      resolve(config);
     });
   });
 }
 
-async function search(query, limitOverride) {
+async function request(path, options) {
   var config = await settings();
-  var limit = limitOverride || config.limit;
-  var url = CV.buildSearchUrl(config.baseUrl, query, limit);
+  var base = String(config.baseUrl || CV.DEFAULTS.baseUrl).replace(/\/+$/, "");
+  var opts = Object.assign({ credentials: "omit", cache: "no-store" },
+                           options || {});
+  opts.headers = Object.assign(CV.requestHeaders(config.apiKey),
+                               opts.headers || {});
 
   var response;
   try {
-    response = await fetch(url, {
-      method: "GET",
-      headers: CV.requestHeaders(config.apiKey),
-      // The archive is local and private; never attach site cookies to it.
-      credentials: "omit",
-      cache: "no-store"
-    });
+    response = await fetch(base + path, opts);
   } catch (error) {
-    throw new Error(CV.explainError(error, config.baseUrl));
+    throw new Error(CV.explainError(error, base));
   }
+
+  var payload = null;
+  try { payload = await response.json(); } catch (ignored) { /* no body */ }
 
   if (!response.ok) {
-    var detail = "";
-    try {
-      var payload = await response.json();
-      detail = payload && payload.error ? payload.error : "";
-    } catch (ignored) { /* body was not JSON */ }
+    var detail = payload && payload.error ? payload.error : "";
     throw new Error(CV.explainError(
       new Error("HTTP " + response.status + (detail ? ": " + detail : "")),
-      config.baseUrl));
+      base));
   }
-
-  return response.json();
+  return payload;
 }
 
-chrome.runtime.onMessage.addListener(function (message, _sender, sendResponse) {
-  if (!message || message.type !== "contextvault:search") return false;
+// ---------------------------------------------------------------------
+// Search
+// ---------------------------------------------------------------------
 
-  search(message.query, message.limit).then(function (data) {
+async function search(query, limitOverride) {
+  var config = await settings();
+  var limit = limitOverride || config.limit;
+  // buildSearchUrl owns the encoding and the limit clamping; request() adds
+  // the base, so strip the one buildSearchUrl put on.
+  var full = CV.buildSearchUrl(config.baseUrl, query, limit);
+  return request(full.slice(full.indexOf("/api/v1")));
+}
+
+// ---------------------------------------------------------------------
+// Capture
+// ---------------------------------------------------------------------
+
+/* How many messages the archive already holds for this conversation.
+ *
+ * A captured thread and the same thread imported from the official export
+ * share an id, so a capture that read a short or half-rendered page could
+ * otherwise replace a complete import with a truncated one.  Returns -1 when
+ * the conversation is not stored yet, which is not a reason to refuse.
+ */
+async function storedMessageCount(conversationId) {
+  try {
+    var record = await request("/api/v1/conversations/"
+                               + encodeURIComponent(conversationId));
+    return (record && typeof record.message_count === "number")
+      ? record.message_count : -1;
+  } catch (error) {
+    return -1;   // absent, or unreachable; the caller decides what that means
+  }
+}
+
+async function ingest(payload, options) {
+  options = options || {};
+  var config = await settings();
+
+  var conversation = payload && payload.conversations
+    && payload.conversations[0];
+  if (!conversation) throw new Error("nothing to send");
+
+  if (!options.force) {
+    if (!config.captureEnabled) return { skipped: "capture is off" };
+    var platform = conversation.provider;
+    if (platform && config.capturePlatforms[platform] === false) {
+      return { skipped: "capture is off for " + platform };
+    }
+  }
+
+  var existing = await storedMessageCount(conversation.conversation_id);
+  if (existing > conversation.messages.length) {
+    // The archive knows more than this page is showing. Overwriting would
+    // lose turns, and the API replaces messages wholesale on update.
+    return {
+      skipped: "archive already holds " + existing + " messages; page shows "
+               + conversation.messages.length
+    };
+  }
+
+  var result = await request("/api/v1/ingest", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  return result;
+}
+
+// ---------------------------------------------------------------------
+// Messages from the content script and the popup
+// ---------------------------------------------------------------------
+
+var HANDLERS = {
+  "contextvault:search": function (message) {
+    return search(message.query, message.limit);
+  },
+  "contextvault:ingest": function (message) {
+    return ingest(message.payload, { force: message.force });
+  },
+  "contextvault:health": function () {
+    return request("/api/v1/health");
+  },
+  "contextvault:settings": function () {
+    return settings();
+  }
+};
+
+chrome.runtime.onMessage.addListener(function (message, _sender, sendResponse) {
+  var handler = message && HANDLERS[message.type];
+  if (!handler) return false;
+
+  Promise.resolve(handler(message)).then(function (data) {
     sendResponse({ ok: true, data: data });
   }).catch(function (error) {
     sendResponse({ ok: false, error: error.message || String(error) });

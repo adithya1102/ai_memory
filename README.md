@@ -2,7 +2,7 @@
 
 ![Python](https://img.shields.io/badge/python-3.10%2B-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
-![Tests](https://img.shields.io/badge/tests-620%20passing-brightgreen)
+![Tests](https://img.shields.io/badge/tests-634%20passing-brightgreen)
 ![Local first](https://img.shields.io/badge/data-100%25%20local-informational)
 
 **A local-first memory layer for your AI conversations. Search everything you
@@ -155,6 +155,7 @@ Cloud sync would make some things easier. It is not worth it for this data.
 | **Multi-provider** | ChatGPT, Claude and Gemini in one library and one index. The provider is detected from the file. |
 | **MCP server** | Three read-only tools so Claude Desktop can search your archive for you. |
 | **Bridge API** | A REST layer at `/api/v1` for everything that cannot speak MCP — extensions, proxies, scripts. Reads and writes the same library. |
+| **Auto-capture** | A Chrome extension records your ChatGPT conversations into the archive as you have them, batched and idempotent. `/context` works on five platforms. |
 | **`/context` command** | Type it in ChatGPT, Claude or Gemini and your own history is retrieved and injected before the assistant answers. Browser extension on desktop, a copyable page on mobile. |
 | **Mobile app** | An installable PWA at `/app` — search, read, copy context, keep memories. Vanilla JS, ~40 KB, works offline on your last results. |
 | **Desktop app** | Runs in a native window via pywebview, or in your browser with `--no-window`. |
@@ -584,7 +585,7 @@ conversation chains** re-runs detection over the whole library.
 python tests/run_all.py
 ```
 
-620 checks across nine suites. They run against temporary databases and never
+634 checks across nine suites. They run against temporary databases and never
 touch `data/`, so running them cannot harm a real library. The two semantic
 suites skip themselves with a note if sentence-transformers is not installed.
 

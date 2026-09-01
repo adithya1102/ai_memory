@@ -1,15 +1,19 @@
 {
   "manifest_version": 3,
   "name": "ContextVault",
-  "version": "0.1.0",
-  "description": "Type /context in ChatGPT, Claude or Gemini to pull in your own conversation history from a local ContextVault archive.",
-  "permissions": ["storage"],
+  "version": "0.2.0",
+  "description": "Capture your AI conversations to a local archive, and type /context in any chat to search it.",
+  "permissions": ["storage", "activeTab"],
   "host_permissions": [
     "http://127.0.0.1/*",
     "http://localhost/*"
   ],
   "background": {
     "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "ContextVault"
   },
   "options_ui": {
     "page": "options.html",
@@ -21,9 +25,13 @@
         "https://chatgpt.com/*",
         "https://chat.openai.com/*",
         "https://claude.ai/*",
-        "https://gemini.google.com/*"
+        "https://gemini.google.com/*",
+        "https://chat.deepseek.com/*",
+        "https://www.perplexity.ai/*",
+        "https://perplexity.ai/*"
       ],
-      "js": ["lib/context.js", "content.js"],
+      "js": ["lib/context.js", "lib/platforms.js", "lib/capture.js",
+             "content.js"],
       "css": ["content.css"],
       "run_at": "document_idle"
     }

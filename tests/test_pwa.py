@@ -218,7 +218,7 @@ NODE = shutil.which("node")
 if not NODE:
     print("  (node not installed -- JS suites skipped)")
 else:
-    for name in ("test_sw.js", "test_extension.js"):
+    for name in ("test_sw.js", "test_extension.js", "test_capture.js"):
         done = subprocess.run([NODE, os.path.join(ROOT, "tests", name)],
                               capture_output=True, text=True, timeout=300,
                               encoding="utf-8")
@@ -233,8 +233,10 @@ else:
                               encoding="utf-8")
         check("pwa/%s parses" % name, done.returncode == 0,
               (done.stderr or "").strip().splitlines()[:1])
-    for name in ("content.js", "background.js", "options.js",
-                 os.path.join("lib", "context.js")):
+    for name in ("content.js", "background.js", "options.js", "popup.js",
+                 os.path.join("lib", "context.js"),
+                 os.path.join("lib", "platforms.js"),
+                 os.path.join("lib", "capture.js")):
         done = subprocess.run(
             [NODE, "--check", os.path.join(ROOT, "extension", name)],
             capture_output=True, text=True, timeout=120, encoding="utf-8")
