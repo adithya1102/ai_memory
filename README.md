@@ -2,7 +2,7 @@
 
 ![Python](https://img.shields.io/badge/python-3.10%2B-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
-![Tests](https://img.shields.io/badge/tests-699%20passing-brightgreen)
+![Tests](https://img.shields.io/badge/tests-712%20passing-brightgreen)
 ![Local first](https://img.shields.io/badge/data-100%25%20local-informational)
 
 **A local-first memory layer for your AI conversations. Search everything you
@@ -118,6 +118,50 @@ found on what is *inside* them.
 | **Semantic understanding** | Results badged `both` matched on meaning as well as keyword. *"Personal AGI for restaurant operations"* never says Gusto in its title, and surfaces anyway. |
 | **MCP integration** | Nothing was pasted. Claude Desktop picked the tool, ran it, and read the results — the archive became something the assistant can consult mid-conversation. |
 
+## Live demo: memories
+
+A **memory** is a conclusion rather than a transcript — something worth keeping
+after the conversation that produced it is over. Memories are searched the same
+way conversations are, and this is what that buys you.
+
+The archive holds one memory (synthetic, for illustration):
+
+```text
+User is building Project Phoenix, targeting Q4 launch.
+User prefers concise answers and works with a small team.
+```
+
+Ask an assistant a question that memory answers:
+
+```text
+What's the user's project timeline?
+```
+
+Keyword search returns **nothing**. The memory never contains the word
+*timeline*, and full-text search needs every term to be present. Semantic
+search finds it regardless:
+
+```json
+{
+  "kind": "memory",
+  "memory_id": 1,
+  "title": "User is building Project Phoenix, targeting Q4 launch",
+  "provider": "pwa",
+  "match_type": "semantic",
+  "relevance_score": 0.016393,
+  "content": "User is building Project Phoenix, targeting Q4 launch. User prefers concise answers and works with a small team.",
+  "tags": ["project"]
+}
+```
+
+That is the actual output of `search_memory` for that query against that
+memory — `match_type` is `semantic`, not `both`, because the keyword half
+contributed nothing.
+
+Every result carries a `kind`. A `conversation` gives you a `conversation_id`
+to read in full; a `memory` carries its whole text in `content`, because a
+memory is short enough that there is nothing further to fetch.
+
 ## Why local-first?
 
 Your chat history is not a pile of search queries. It is medical questions,
@@ -153,6 +197,7 @@ Cloud sync would make some things easier. It is not worth it for this data.
 | **Conversation chains** | Related conversations grouped automatically, so a topic you returned to over weeks reads as one thread. |
 | **Safe re-import** | Import the same export twice and nothing duplicates. Matched on id, then on content hash, so even a re-generated export is recognised. |
 | **Multi-provider** | ChatGPT, Claude and Gemini in one library and one index. The provider is detected from the file. |
+| **Memories** | Short facts worth keeping, saved from the mobile app or the Bridge API. Indexed for keyword *and* semantic search, and returned by every surface — MCP, the REST API, the browser extension and the web UI — alongside conversations in one ranking. |
 | **MCP server** | Three read-only tools so Claude Desktop can search your archive for you. |
 | **Bridge API** | A REST layer at `/api/v1` for everything that cannot speak MCP — extensions, proxies, scripts. Reads and writes the same library. |
 | **Auto-capture** | A Chrome extension records your ChatGPT conversations into the archive as you have them, batched and idempotent. `/context` works on five platforms. |
@@ -585,11 +630,51 @@ conversation chains** re-runs detection over the whole library.
 python tests/run_all.py
 ```
 
-699 checks across ten suites. They run against temporary databases and never
+712 checks across ten suites. They run against temporary databases and never
 touch `data/`, so running them cannot harm a real library. The two semantic
 suites skip themselves with a note if sentence-transformers is not installed.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for what each suite covers.
+
+## Status
+
+This is a working personal tool, not a product. The distinction below is
+between *what runs*, *what has been checked against real data*, and *what has
+only been checked in tests* — because those are three different claims and
+collapsing them would be dishonest.
+
+**Working**
+
+Core engine (SQLite, FTS5, local embeddings, hybrid ranking, chains) · MCP
+server · Bridge REST API · mobile PWA · browser extension · ChatGPT and Claude
+importers · memories.
+
+**Verified against real data, on one machine**
+
+Semantic memory search — with **n = 1 memory**, on a single library, on one
+operating system. It works, and that is a smaller claim than it sounds: one
+memory is not a corpus, and one machine is not a matrix. Conversation search
+has been exercised against a real 21-conversation archive across two
+providers.
+
+**Not verified**
+
+- **Multi-user.** Never run for more than one person. There is no concept of
+  accounts, no isolation between libraries, and nothing has been tested under
+  concurrent writes.
+- **Auto-capture beyond ChatGPT.** Claude, Gemini, DeepSeek and Perplexity are
+  detected and support `/context`, but no capture adapter has been written or
+  tested for them. ChatGPT capture itself has been verified against a
+  simulated DOM and a live Bridge API — not against a browser session on the
+  live site.
+- **Scale.** The largest archive tested is small. Behaviour with tens of
+  thousands of conversations is unknown.
+- **Cross-platform.** Developed and run on Windows only. Nothing here should
+  be OS-specific, but "should" is not "checked".
+
+The test suite is thorough about the logic it covers and says nothing about
+any of the above. Treat green tests as evidence the code does what it was
+written to do, not as evidence it is ready for someone else's machine.
 
 ## Limitations
 
